@@ -1,0 +1,75 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  WGtech AI Starter Kit — Metis Compute Board (SBC)
+#
+#  Like the Raspberry Pi kit, this PULLS the frontend and backend as pre-built
+#  images — there is no frontend/ or backend/ source in this repository.
+#  `docker compose up` fetches them from the registry.
+#
+#  The `devices:` block is managed by setup.sh — do not edit it by hand.
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  frontend:
+    image: ${REGISTRY:-wgtechsolutions1}/sbc-dashboard-frontend:${TAG:-latest}
+    container_name: dashboard-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  backend:
+    image: ${REGISTRY:-wgtechsolutions1}/sbc-dashboard-backend:${TAG:-latest}
+    container_name: dashboard-backend
+    expose:
+      - "8000"
+    group_add:
+      - "44"                          # video group — USB camera access
+    volumes:
+      - ./data/models:/app/data/models
+      - ./data/recordings:/app/data/recordings
+      - ./data/events:/app/data/events
+      - ./data/hls:/app/data/hls
+      - ./data/uploads:/app/data/uploads
+
+      # Inference HLS shared with the voyager-sdk container. setup.sh detects the
+      # host path (the SDK container can't see the host's /tmp) and writes it here.
+      - ${SHARED_HLS_DIR:-/home/antelao/shared/hls}:/tmp/hls
+
+      # Full host filesystem so a user-chosen recording folder can be written to.
+      - /:/host:rw
+
+      # NOTE: /etc/localtime is deliberately NOT mounted — on this board's BSP it
+      # is an empty directory and a file→file mount fails. Use TZ instead.
+    env_file:
+      - .env
+    environment:
+      - TZ=${TZ:-UTC}
+
+    # Managed by setup.sh — populated only when /dev/video* exists.
+    # A hard mapping to a missing node makes the container refuse to start.
+    # devices:
+    #   - /dev/video0:/dev/video0
+
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # voyager-sdk — started separately via start_voyager.sh (Axelera's container,
+  # host-networked, not managed by compose).
+
+networks:
+  default:
+    name: app-net
+    driver: bridge
+    ipam:
+      config:
+        # Pinned so the bridge gateway IP (used by MEDIAMTX_HOST / VOYAGER_SDK_URL
+        # in .env) doesn't change across reboots.
+        - subnet: 172.22.0.0/16
+          gateway: 172.22.0.1

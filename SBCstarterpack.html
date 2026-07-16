@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>WGtech AI Starter Kit — Metis Compute Board Setup Guide</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #f8fafc;
+    --surface: #ffffff;
+    --surface2: #f1f5f9;
+    --border: #e2e8f0;
+    --accent: #0891b2;
+    --accent2: #7c3aed;
+    --accent3: #059669;
+    --warn: #d97706;
+    --danger: #dc2626;
+    --info: #2563eb;
+    --text: #0f172a;
+    --muted: #64748b;
+    --code-bg: #f8fafc;
+    --sidebar-w: 280px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    font-size: 15px;
+    line-height: 1.75;
+    display: flex;
+    min-height: 100vh;
+  }
+
+  .sidebar {
+    width: var(--sidebar-w);
+    min-height: 100vh;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    position: fixed;
+    top: 0; left: 0;
+    overflow-y: auto;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sidebar-logo {
+    padding: 28px 24px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sidebar-logo .brand {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+
+  .sidebar-logo h2 {
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--text);
+    line-height: 1.3;
+  }
+
+  .sidebar-logo .version {
+    display: inline-block;
+    margin-top: 8px;
+    font-size: 11px;
+    background: var(--accent2);
+    color: #fff;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+  }
+
+  nav { padding: 16px 0; flex: 1; }
+
+  nav a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 24px;
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+    border-left: 3px solid transparent;
+    transition: all 0.15s;
+    line-height: 1.3;
+  }
+
+  nav a:hover { color: var(--text); background: var(--surface2); }
+  nav a.active { color: var(--accent); border-left-color: var(--accent); background: rgba(8,145,178,0.08); }
+
+  nav .nav-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--accent2);
+    min-width: 20px;
+    font-weight: 600;
+  }
+
+  nav .nav-divider {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 16px 24px 6px;
+    opacity: 0.5;
+  }
+
+  .main {
+    margin-left: var(--sidebar-w);
+    flex: 1;
+    max-width: 900px;
+    padding: 60px 56px 100px;
+  }
+
+  .hero {
+    margin-bottom: 56px;
+    padding-bottom: 40px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -60px; left: -56px;
+    width: 400px; height: 300px;
+    background: radial-gradient(ellipse at top left, rgba(124,58,237,0.08), transparent 60%);
+    pointer-events: none;
+  }
+
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 16px;
+  }
+
+  .hero-badge::before {
+    content: '';
+    display: inline-block;
+    width: 6px; height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.7); }
+  }
+
+  .hero h1 {
+    font-size: 40px;
+    font-weight: 800;
+    line-height: 1.1;
+    color: #0f172a;
+    margin-bottom: 16px;
+    letter-spacing: -0.02em;
+  }
+
+  .hero h1 span { color: var(--accent); }
+
+  .hero p {
+    font-size: 15px;
+    color: var(--muted);
+    max-width: 600px;
+    line-height: 1.7;
+    margin-bottom: 28px;
+  }
+
+  .meta-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+
+  .meta-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+
+  .meta-card .label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+
+  .meta-card .value {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .section {
+    margin-bottom: 72px;
+    scroll-margin-top: 32px;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+
+  .section-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent2);
+    background: rgba(124,58,237,0.15);
+    border: 1px solid rgba(124,58,237,0.3);
+    padding: 4px 10px;
+    border-radius: 6px;
+    white-space: nowrap;
+  }
+
+  .section h2 {
+    font-size: 24px;
+    font-weight: 800;
+    color: #0f172a;
+    letter-spacing: -0.01em;
+  }
+
+  .section h3 {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+    margin: 28px 0 12px;
+    padding-left: 12px;
+    border-left: 3px solid var(--accent2);
+  }
+
+  .section p {
+    color: #475569;
+    margin-bottom: 14px;
+    line-height: 1.75;
+  }
+
+  .section p strong { color: var(--text); }
+  .section p code, li code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    background: rgba(0,229,255,0.08);
+    border: 1px solid rgba(0,229,255,0.15);
+    color: var(--accent);
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+
+  ul, ol {
+    padding-left: 20px;
+    margin-bottom: 16px;
+    color: #475569;
+  }
+
+  ul li, ol li {
+    margin-bottom: 6px;
+    line-height: 1.7;
+  }
+
+  ul li strong, ol li strong { color: var(--text); }
+
+  .code-wrap {
+    margin: 16px 0;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background: var(--code-bg);
+  }
+
+  .code-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 9px 16px;
+    background: #f1f5f9;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .code-lang {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .code-lang::before {
+    content: '';
+    display: inline-block;
+    width: 8px; height: 8px;
+    background: #3fb950;
+    border-radius: 50%;
+  }
+
+  .copy-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.03em;
+  }
+
+  .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .copy-btn.copied { border-color: var(--accent3); color: var(--accent3); }
+  .copy-btn svg { width: 13px; height: 13px; }
+
+  pre {
+    padding: 18px 20px;
+    overflow-x: auto;
+    margin: 0;
+  }
+
+  pre code {
+    font-family: 'JetBrains Mono', monospace !important;
+    font-size: 13px !important;
+    background: none !important;
+    border: none !important;
+    color: #1e293b !important;
+    padding: 0 !important;
+    line-height: 1.65;
+    white-space: pre;
+  }
+
+  .output-wrap {
+    margin: 12px 0 16px;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid rgba(5,150,105,0.3);
+    background: rgba(5,150,105,0.05);
+  }
+
+  .output-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 16px;
+    background: rgba(5,150,105,0.1);
+    border-bottom: 1px solid rgba(5,150,105,0.2);
+    font-size: 11px;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    color: #059669;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .output-wrap pre { padding: 14px 20px; }
+  .output-wrap pre code { color: #047857 !important; font-size: 12px !important; }
+
+  .callout {
+    display: flex;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    margin: 16px 0;
+    font-size: 14px;
+    line-height: 1.65;
+  }
+  strong {
+  display: inline;
+  }
+  .callout-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .callout-body { flex: 1; }
+  .callout-body strong { display: inline;}
+
+  .callout.warn { background: rgba(217,119,6,0.08); border: 1px solid rgba(217,119,6,0.3); color: #92400e; }
+  .callout.info { background: rgba(37,99,235,0.08); border: 1px solid rgba(37,99,235,0.3); color: #1e40af; }
+  .callout.tip  { background: rgba(5,150,105,0.08); border: 1px solid rgba(5,150,105,0.3); color: #065f46; }
+  .callout.error{ background: rgba(220,38,38,0.08);  border: 1px solid rgba(220,38,38,0.3);  color: #991b1b; }
+  .callout.time { background: rgba(124,58,237,0.08); border: 1px solid rgba(124,58,237,0.3); color: #5b21b6; }
+
+  .table-wrap {
+    overflow-x: auto;
+    margin: 16px 0;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+  }
+
+  thead th {
+    background: var(--surface2);
+    padding: 10px 16px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+  }
+
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--surface2); }
+
+  tbody td {
+    padding: 10px 16px;
+    color: #475569;
+    vertical-align: top;
+    line-height: 1.6;
+  }
+
+  tbody td:first-child { color: var(--text); font-weight: 600; font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+  tbody td strong { color: var(--text); }
+  tbody td code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    background: rgba(0,229,255,0.08);
+    border: 1px solid rgba(0,229,255,0.15);
+    color: var(--accent);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+
+  .step-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0,229,255,0.06);
+    border: 1px solid rgba(0,229,255,0.2);
+    border-radius: 8px;
+    padding: 6px 14px 6px 8px;
+    margin-bottom: 10px;
+  }
+
+  .step-pill .step-num {
+    background: var(--accent);
+    color: #000;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    width: 22px; height: 22px;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .step-pill .step-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  .appendix {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 32px;
+    margin-bottom: 40px;
+  }
+
+  .appendix h2 {
+    font-size: 20px;
+    font-weight: 800;
+    color: #0f172a;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .appendix h3 {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+    margin: 24px 0 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .appendix h3::before {
+    content: '→';
+    color: var(--accent);
+    font-size: 14px;
+  }
+
+  /* FAQ styles */
+  .faq-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 32px;
+    margin-bottom: 40px;
+  }
+
+  .faq-section h2 {
+    font-size: 20px;
+    font-weight: 800;
+    color: #0f172a;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .faq-section .faq-subtitle {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 28px;
+  }
+
+  .faq-item {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 10px;
+    overflow: hidden;
+    transition: border-color 0.15s;
+  }
+
+  .faq-item:hover { border-color: rgba(8,145,178,0.4); }
+
+  .faq-item summary {
+    padding: 14px 18px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: background 0.15s;
+  }
+
+  .faq-item summary::-webkit-details-marker { display: none; }
+
+  .faq-item summary:hover { background: var(--surface2); }
+
+  .faq-item[open] summary {
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    color: var(--accent);
+  }
+
+  .faq-item summary .faq-arrow {
+    margin-left: auto;
+    font-size: 12px;
+    color: var(--muted);
+    transition: transform 0.2s;
+  }
+
+  .faq-item[open] summary .faq-arrow { transform: rotate(90deg); color: var(--accent); }
+
+  .faq-item summary .faq-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    flex-shrink: 0;
+  }
+
+  .faq-tag.setup { background: rgba(8,145,178,0.12); color: var(--accent); }
+  .faq-tag.docker { background: rgba(124,58,237,0.12); color: var(--accent2); }
+  .faq-tag.inference { background: rgba(5,150,105,0.12); color: var(--accent3); }
+  .faq-tag.hardware { background: rgba(217,119,6,0.12); color: var(--warn); }
+  .faq-tag.network { background: rgba(220,38,38,0.1); color: var(--danger); }
+
+  .faq-body {
+    padding: 16px 18px;
+    font-size: 14px;
+    color: #475569;
+    line-height: 1.7;
+  }
+
+  .faq-body p { margin-bottom: 10px; }
+  .faq-body p:last-child { margin-bottom: 0; }
+  .faq-body strong { color: var(--text); }
+  .faq-body code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    background: rgba(8,145,178,0.08);
+    border: 1px solid rgba(8,145,178,0.15);
+    color: var(--accent);
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+  .faq-body ol, .faq-body ul { padding-left: 20px; margin: 8px 0; }
+  .faq-body li { margin-bottom: 5px; }
+
+  .debug-section {
+    margin: 20px 0;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface2);
+    overflow: hidden;
+  }
+
+  .debug-section summary {
+    padding: 12px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+    transition: all 0.15s;
+  }
+
+  .debug-section summary::-webkit-details-marker { display: none; }
+
+  .debug-section summary:hover { background: var(--surface); color: var(--text); }
+  .debug-section[open] summary { border-bottom: 1px solid var(--border); color: var(--text); }
+
+  .debug-content {
+    padding: 16px;
+    font-size: 14px;
+    line-height: 1.65;
+    color: #475569;
+  }
+
+  .debug-content p { margin-bottom: 12px; }
+  .debug-content p:last-child { margin-bottom: 0; }
+  .debug-content strong { color: var(--text); }
+  .debug-content ol { margin: 8px 0; padding-left: 20px; }
+  .debug-content li { margin-bottom: 6px; }
+  .debug-content code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    background: rgba(8,145,178,0.1);
+    border: 1px solid rgba(8,145,178,0.2);
+    color: var(--accent);
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+
+  hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 40px 0;
+  }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+  @media (max-width: 900px) {
+    .sidebar { display: none; }
+    .main { margin-left: 0; padding: 32px 20px 80px; }
+    .meta-grid { grid-template-columns: 1fr; }
+    .hero h1 { font-size: 28px; }
+  }
+</style>
+</head>
+<body>
+<aside class="sidebar"><div class="sidebar-logo"><div class="brand">WGtech</div><h2>AI Starter Kit</h2><span class="version">Compute Board</span></div><nav id="sidenav"><a href="#s1"><span class="nav-num">01</span> Hardware Requirements</a><a href="#s2"><span class="nav-num">02</span> Flash the OS</a><a href="#s3"><span class="nav-num">03</span> First Boot &amp; Terminal</a><a href="#s4"><span class="nav-num">04</span> System Update</a><a href="#s5"><span class="nav-num">05</span> Install Docker</a><a href="#s6"><span class="nav-num">06</span> Metis Driver &amp; Runtime</a><a href="#s7"><span class="nav-num">07</span> Voyager SDK Container</a><a href="#s8"><span class="nav-num">08</span> Verify Inference</a><a href="#s9"><span class="nav-num">09</span> Cameras &amp; Network</a><a href="#s10"><span class="nav-num">10</span> Run the Dashboard</a><div class="nav-divider"></div><a href="#appendix" style="color:var(--accent3)">📋 Reference</a><a href="#faq">❓ FAQ</a></nav></aside>
+<main class="main"><div class="hero"><div class="hero-badge">Compute Board Setup Guide</div><h1>WGtech AI <span>Starter Kit</span><br/>Metis Compute Board</h1><p>End-to-end setup for the Axelera Metis Compute Board — an RK3588 single-board computer with an integrated 4-core Metis AIPU. This guide takes you from a blank board to running multi-camera Vision AI inference in a browser. Follow each section in order; the steps depend on one another.</p><div class="callout info"><span class="callout-icon">⏱️</span><div class="callout-body"><strong>Estimated Time:</strong><ul><li>Active setup time: ~30–60 minutes</li><li>Total time (including downloads &amp; the first model compile): 2–4+ hours</li></ul></div></div><div class="meta-grid"><div class="meta-card"><div class="label">Product</div><div class="value">AI Starter Kit</div></div><div class="meta-card"><div class="label">Platform</div><div class="value">Metis Compute Board (RK3588)</div></div><div class="meta-card"><div class="label">Accelerator</div><div class="value">Integrated Metis AIPU · 4 cores</div></div></div><div class="callout warn"><span class="callout-icon">🧭</span><div class="callout-body"><strong>Different board?</strong> This guide is for the <strong>Metis Compute Board</strong>, where the AIPU is built into the SBC. If you have the <strong>Raspberry Pi 5 + Metis M.2</strong> unit, use the <a href="https://github.com/WG-Tech-Solutions/Starter-Kit">Pi Starter Kit</a> instead — its PCIe steps do not apply here.</div></div></div><section class="section" id="s1"><div class="section-header"><span class="section-num">§ 01</span><h2>Hardware Requirements</h2></div><p>The Metis Compute Board is a complete unit — the AIPU is on the board, so there is no card to seat and no PCIe HAT to stack. You will need the following around it:</p><div class="table-wrap"><table><thead><tr><th>Component</th><th>Notes</th></tr></thead><tbody><tr><td>Metis Compute Board</td><td><strong>RK3588 SBC</strong> with integrated Metis AIPU — supplied as one unit</td></tr><tr><td>Power supply</td><td>Use the PSU specified by Axelera for your board revision. An underpowered supply causes random crashes and AIPU instability</td></tr><tr><td>Storage</td><td>SD card or eMMC/NVMe as specified for your board. Class 10 / A2 or faster shortens boot and install times</td></tr><tr><td>HDMI display + cable</td><td>Check the board&#39;s connector type before buying a cable</td></tr><tr><td>USB keyboard + mouse</td><td>For initial setup</td></tr><tr><td>Ethernet (preferred) or Wi-Fi</td><td>Ethernet is strongly preferred for reliability during large downloads</td></tr><tr><td>One or more RTSP IP cameras</td><td><strong>On the same subnet as the board.</strong> H.264 or H.265, both supported. A USB webcam works too</td></tr></tbody></table></div><div class="callout tip"><span class="callout-icon">✅</span><div class="callout-body"><strong>Integrated AIPU</strong> Unlike the Pi kit, the Metis Compute Board has the AIPU built in. There is no physical accelerator installation — no card, no M.2 slot, no PCIe HAT to worry about.</div></div></section><section class="section" id="s2"><div class="section-header"><span class="section-num">§ 02</span><h2>Flash the Operating System</h2></div><p>Flash the board&#39;s OS image following <strong>Axelera&#39;s official documentation for your board revision</strong>. Axelera&#39;s guide is authoritative — image, tool, and procedure vary by board, so follow theirs rather than a generic one.</p><div class="callout info"><span class="callout-icon">📖</span><div class="callout-body">Start at <a href="https://docs.axelera.ai/">docs.axelera.ai</a> and the <a href="https://github.com/axelera-ai-hub/voyager-sdk">Voyager SDK repository</a>. Use the image and flashing tool they specify for the Compute Board.</div></div><p>Once flashed, boot the board and confirm you are on the right platform:</p><div class="code-wrap"><div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>Copy</button></div><pre><code>uname -m
+cat /proc/device-tree/model</code></pre></div><div class="output-wrap"><div class="output-header">Expected output</div><pre><code>aarch64
+...RK3588...</code></pre></div><div class="callout warn"><span class="callout-icon">⚠️</span><div class="callout-body">If <code>uname -m</code> does not report <code>aarch64</code>, or the model does not mention <strong>RK3588</strong>, stop and recheck the image. The rest of this guide assumes a correctly flashed Compute Board.</div></div></section><section class="section" id="s3"><div class="section-header"><span class="section-num">§ 03</span><h2>First Boot &amp; Opening the Terminal</h2></div><p>Complete the on-screen first-boot setup (locale, user, network). Then open a terminal — every command in this guide runs there.</p><div class="step-pill"><span class="step-num">1</span><span class="step-label">Connect to the network</span></div><p>Ethernet is plug-and-go. For Wi-Fi, use the desktop network menu or your board&#39;s setup tool. Confirm you are online and note the board&#39;s IP — you will use it to reach the dashboard from your laptop later:</p><div class="code-wrap"><div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>Copy</button></div><pre><code>ping -c 3 8.8.8.8
+hostname -I</code></pre></div><div class="callout tip"><span class="callout-icon">💡</span><div class="callout-body">Write down the IP from <code>hostname -I</code> (the first address). You will open <code>http://&lt;that-ip&gt;</code> from another machine on the same network once the dashboard is running.</div></div></section><section class="section" id="s4"><div class="section-header"><span class="section-num">§ 04</span><h2>System Update</h2></div><p>Bring the system up to date before installing anything else:</p><div class="code-wrap"><div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>Copy</button></div><pre><code>sudo apt update && sudo apt upgrade -y</code></pre></div><div class="callout time"><span class="callout-icon">⏳</span><div class="callout-body">This can take a while on first run depending on how old the image is. Use Ethernet if you can.</div></div><p>Install a few basics used later:</p><div class="code-wrap"><div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>Copy</button></div><pre><code>sudo apt install -y curl git ffmpeg</code></pre></div></section><section class="section" id="s5"><div class="section-header"><span class="section-num">§ 05</span><h2>Install Docker</h2></div><p>The dashboard runs in containers. Install Docker Engine and the Compose plugin:</p><div class="code-wrap"><div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>Copy</button></div><pre><code>curl -fsSL https://get.docker.com | sudo sh</code></pre></div><div class="step-pill"><span class="step-num">1</span><span class="step-label">Run Docker without sudo</span></div><p>Add your user to the <code>docker</code> group so the kit&#39;s scripts can talk to Docker directly:</p><div class="code-wrap"><div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>Copy</button></div><pre><code>sudo usermod -aG docker $USER</code></pre></div><div class="callout warn"><span class="callout-icon">🔁</span><div class="callout-body"><strong>Log out and back in</strong> (or reboot) for the group change to take effect. Skipping this is the most common early mistake — the scripts assume Docker works without <code>sudo</code>.</div></div><div class="step-pill"><span class="step-num">2</span><span class="step-label">Verify</span></div><div class="code-wrap"><div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>Copy</button></div><pre><code>docker run hello-world
+docker compose version</code></pre></div><div class="output-wrap"><div class="output-header">Expected output</div><pre><code>Hello from Docker!
+...
+Docker Compose version v2.x.x</code></pre></div><div class="callout error"><span class="callout-icon">🚫</span><div class="callout-body">If <code>docker run hello-world</code> only works with <code>sudo</code>, the group change has not applied yet. Log out and back in, then retry — do not work around it with <code>sudo</code>, or the kit&#39;s scripts will hit permission errors later.</div></div></section><section class="section" id="s6"><div class="section-header"><span class="section-num">§ 06</span><h2>Metis Driver &amp; Runtime</h2></div><p>The AIPU is driven by the <code>metis</code> kernel module. Install it using <strong>Axelera&#39;s instructions for your BSP</strong>, then confirm it is loaded:</p><div class="code-wrap"><div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>Copy</button></div><pre><code>lsmod | grep metis
+cat /sys/module/metis/version</code></pre></div><div class="output-wrap"><div class="output-header">Expected output</div><pre><code>metis                 131072  0
+1.4.16</code></pre></div><p>If the module is not loaded:</p><div class="code-wrap"><div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>Copy</button></div><pre><code>sudo modprobe metis</code></pre></div><div class="step-pill"><span class="step-num">1</span><span class="step-label">Load automatically at boot</span></div><p>So you do not have to <code>modprobe</code> after every reboot:</p><div class="code-wrap"><div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>Copy</button></div><pre><code>echo metis | sudo tee /etc/modules-load.d/metis.conf</code></pre></div><div class="callout info"><span class="callout-icon">🔢</span><div class="callout-body">The driver version (here <code>1.4.16</code>) and the Voyager SDK are versioned together. Keep them matched — installing a mismatched pair is a common source of AIPU errors later.</div></div><details class="debug-section"><summary>🔧 Debug: module will not load</summary><div class="debug-content"><p>Check kernel messages for the reason:</p><div class="code-wrap"><div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>Copy</button></div><pre><code>sudo modprobe metis
+dmesg | grep -i metis | tail -n 20</code></pre></div><p>A full <strong>power cycle</strong> — not a <code>reboot</code> — clears a surprising number of AIPU issues. Disconnect power, wait a few seconds, and boot again.</p></div></details></section><section class="section" id="s7"><div class="section-header"><span class="section-num">§ 07</span><h2>Voyager SDK Container</h2></div><p>Install the Axelera Voyager SDK using their setup script for your version. It creates a Docker container that holds the SDK and its dependencies — this is where inference actually runs.</p><div class="callout info"><span class="callout-icon">📦</span><div class="callout-body">Follow Axelera&#39;s SDK installation for the Compute Board. When it finishes, a container named <code>Voyager-SDK</code> (or <code>voyager-sdk</code>) will exist.</div></div><div class="step-pill"><span class="step-num">1</span><span class="step-label">Confirm the container exists</span></div><div class="code-wrap"><div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>Copy</button></div><pre><code>docker ps -a | grep -i voyager</code></pre></div><div class="output-wrap"><div class="output-header">Expected output</div><pre><code>...   Voyager-SDK</code></pre></div><div class="callout warn"><span class="callout-icon">🔠</span><div class="callout-body">Note the <strong>exact name and capitalisation</strong>. Axelera&#39;s tooling has shipped this as both <code>Voyager-SDK</code> and <code>voyager-sdk</code>. The Starter Kit detects it automatically, but it helps to know which you have.</div></div><div class="step-pill"><span class="step-num">2</span><span class="step-label">Find the SDK path inside it</span></div><div class="code-wrap"><div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>Copy</button></div><pre><code>docker exec Voyager-SDK ls /home/ubuntu/voyager-sdk</code></pre></div></section><section class="section" id="s8"><div class="section-header"><span class="section-num">§ 08</span><h2>Verify Inference — the step that matters</h2></div><p>This is the checkpoint. If inference runs here, the hardware is ready and the Starter Kit will work. If it does not, no amount of dashboard configuration will help — so do not move on until this passes.</p><div class="step-pill"><span class="step-num">1</span><span class="step-label">The AIPU is visible</span></div><div class="code-wrap"><div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>Copy</button></div><pre><code>docker exec Voyager-SDK bash -lc \
+  'cd /home/ubuntu/voyager-sdk && source venv/bin/activate && axdevice'</code></pre></div><p>The Metis device should be listed. If not, the driver is not loaded or the container cannot reach it — return to §06.</p><div class="step-pill"><span class="step-num">2</span><span class="step-label">Inference runs</span></div><div class="code-wrap"><div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>Copy</button></div><pre><code>docker exec Voyager-SDK bash -lc \
+  'cd /home/ubuntu/voyager-sdk && source venv/bin/activate && \
+   ./inference.py yolov8n-coco media/traffic1_1080p.mp4 \
+   --no-display --show-stats --frames 50'</code></pre></div><div class="output-wrap"><div class="output-header">Expected output</div><pre><code>========================================================
+Element                          Time(us)   Effective FPS
+========================================================
+...
+inference-task0:inference          15,401            64.9
+========================================================
+End-to-end : 64.9fps</code></pre></div><div class="callout tip"><span class="callout-icon">🎯</span><div class="callout-body"><strong>If you see a frames-per-second figure, the hardware is ready.</strong> Around 65 fps on this board means all four AIPU cores are working. Continue to the next section and install the Starter Kit.</div></div><div class="callout error"><span class="callout-icon">🛑</span><div class="callout-body"><strong>No FPS figure?</strong> Stop here. Everything downstream depends on this. Re-check §06 (driver) and §07 (SDK), power-cycle the board, and retry. This tool exercises the board, driver, SDK, and AIPU with none of the dashboard&#39;s code in the way — if it fails, the problem is below the Starter Kit.</div></div><details class="debug-section"><summary>🔧 Debug: about AIPU cores &amp; performance</summary><div class="debug-content"><p>The Metis AIPU on this board has <strong>four cores</strong>. Model configurations frequently default to <code>aipu_cores: 1</code>, which caps throughput at roughly a quarter (~17 fps instead of ~65). The Starter Kit forces all four cores at runtime, so you get the full figure once the dashboard is running.</p><p>You can compare for yourself:</p><div class="code-wrap"><div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>Copy</button></div><pre><code># one core
+./inference.py yolov8n-coco media/traffic1_1080p.mp4 --no-display --show-stats --aipu-cores 1 --frames 100
+# four cores
+./inference.py yolov8n-coco media/traffic1_1080p.mp4 --no-display --show-stats --aipu-cores 4 --frames 100</code></pre></div></div></details></section><section class="section" id="s9"><div class="section-header"><span class="section-num">§ 09</span><h2>Cameras &amp; Network</h2></div><p>The dashboard&#39;s main input is RTSP IP cameras. Get them working <em>before</em> the dashboard, where errors are clearer.</p><div class="callout warn"><span class="callout-icon">🌐</span><div class="callout-body"><strong>The single most common camera problem:</strong> the camera must be on the same subnet as the board, or reachable by a route from it. A camera at <code>192.168.0.50</code> is <strong>not</strong> reachable from a board at <code>192.168.1.10</code> without routing between those networks.</div></div><div class="step-pill"><span class="step-num">1</span><span class="step-label">Reach the camera</span></div><div class="code-wrap"><div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>Copy</button></div><pre><code>ping -c 2 192.168.1.69</code></pre></div><div class="step-pill"><span class="step-num">2</span><span class="step-label">Test the RTSP URL</span></div><div class="code-wrap"><div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>Copy</button></div><pre><code>ffprobe -rtsp_transport udp \
+  "rtsp://user:pass@192.168.1.69:554/ch0_0.264"</code></pre></div><p>You should see a stream description — codec, resolution, framerate. If <code>ffprobe</code> cannot open it, the dashboard will not either.</p><div class="table-wrap"><table><thead><tr><th>Camera vendor</th><th>Typical RTSP path</th></tr></thead><tbody><tr><td>Hikvision</td><td><code>/Streaming/Channels/101</code></td></tr><tr><td>Dahua</td><td><code>/cam/realmonitor?channel=1&amp;subtype=0</code></td></tr><tr><td>Generic</td><td><code>/ch0_0.264</code>, <code>/stream1</code>, <code>/live</code></td></tr></tbody></table></div><div class="callout info"><span class="callout-icon">🎥</span><div class="callout-body">Credentials go <strong>in the URL</strong>: <code>rtsp://user:password@ip:554/path</code>. H.264 (<code>.264</code>) and H.265 (<code>.265</code>) both work and can be mixed in one session.</div></div><details class="debug-section"><summary>🔧 Debug: camera drops after ~2 seconds</summary><div class="debug-content"><p>Some cameras reset an RTSP-over-<strong>TCP</strong> session after a couple of seconds. The Starter Kit defaults to <strong>UDP</strong> for exactly this reason. If yours specifically needs TCP, set <code>RTSP_TRANSPORT=tcp</code> in the kit&#39;s <code>.env</code> after install.</p></div></details></section><section class="section" id="s10"><div class="section-header"><span class="section-num">§ 10</span><h2>Run the Dashboard</h2></div><p>With inference verified (§08) and a camera reachable (§09), install and start the Starter Kit.</p><div class="step-pill"><span class="step-num">1</span><span class="step-label">Clone the kit</span></div><div class="code-wrap"><div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>Copy</button></div><pre><code>git clone https://github.com/WG-Tech-Solutions/Starter-Kit-Advanced.git
+cd Starter-Kit-Advanced
+chmod +x *.sh</code></pre></div><div class="step-pill"><span class="step-num">2</span><span class="step-label">Log in to the image registry (if required)</span></div><p>The dashboard ships as pre-built container images. If they are private, log in once:</p><div class="code-wrap"><div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>Copy</button></div><pre><code>docker login</code></pre></div><div class="step-pill"><span class="step-num">3</span><span class="step-label">Start everything</span></div><div class="code-wrap"><div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>Copy</button></div><pre><code>./start.sh</code></pre></div><p>That one command detects your board&#39;s configuration, pulls the images, starts the inference stack, and brings up the dashboard:</p><div class="output-wrap"><div class="output-header">Expected output</div><pre><code>=====================================================
+  WGtech AI Dashboard is running
+=====================================================
+  Dashboard:    http://localhost
+  From another machine on the LAN:
+                http://192.168.1.102
+=====================================================</code></pre></div><div class="callout tip"><span class="callout-icon">🚀</span><div class="callout-body">Open <strong>http://localhost</strong> on the board, or <code>http://&lt;board-ip&gt;</code> from your laptop on the same network. Then read <a href="https://github.com/WG-Tech-Solutions/Starter-Kit-Advanced/blob/main/USER_GUIDE.md">USER_GUIDE.md</a> to add cameras, deploy a model, and record.</div></div><div class="step-pill"><span class="step-num">4</span><span class="step-label">Stopping</span></div><div class="code-wrap"><div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>Copy</button></div><pre><code>./stop.sh</code></pre></div><div class="callout info"><span class="callout-icon">🔁</span><div class="callout-body"><strong>After a reboot:</strong> run <code>sudo modprobe metis</code> (unless you enabled auto-load in §06), then <code>./start.sh</code>. Running <code>./start.sh</code> again is always safe and is the first thing to try if anything looks wrong.</div></div></section><div class="appendix" id="appendix"><div class="section-header"><span class="section-num">📋</span><h2>Quick Reference</h2></div><p><strong>Every boot:</strong></p><div class="code-wrap"><div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>Copy</button></div><pre><code>sudo modprobe metis
+cd ~/Starter-Kit-Advanced
+./start.sh</code></pre></div><p><strong>Useful commands:</strong></p><div class="code-wrap"><div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>Copy</button></div><pre><code># dashboard logs
+docker compose logs -f backend
+
+# inference logs
+docker exec Voyager-SDK tail -f /tmp/ai_server.log
+
+# what is running on the AIPU
+docker exec Voyager-SDK curl -s http://localhost:8001/inference/status
+
+# is the backend alive
+curl -s http://localhost/api/health
+
+# restart everything
+./stop.sh && ./start.sh</code></pre></div><p><strong>Golden diagnostic</strong> — exercises the board with none of the kit&#39;s code in the way:</p><div class="code-wrap"><div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>Copy</button></div><pre><code>docker exec Voyager-SDK bash -lc \
+  'cd /home/ubuntu/voyager-sdk && source venv/bin/activate && \
+   ./inference.py yolov8n-coco "&lt;rtsp-url&gt;" --no-display --show-stats --frames 50'</code></pre></div><div class="callout info"><span class="callout-icon">🧭</span><div class="callout-body">If that tool works but the dashboard does not, the problem is in the kit — collect logs. If it fails too, the problem is below the kit — recheck §06–§08.</div></div></div><div class="faq-section" id="faq"><div class="section-header"><span class="section-num">❓</span><h2>FAQ &amp; Troubleshooting</h2></div><div class="faq-item"><div class="faq-body"><span class="faq-tag network">network</span> <strong>The dashboard will not load at http://localhost.</strong> Check the containers: <code>docker compose ps</code>. If the backend is restarting, view <code>docker compose logs backend --tail=30</code>. A common cause is a mapped USB camera that is not plugged in — re-run <code>./setup.sh</code>, which handles it.</div></div><div class="faq-item"><div class="faq-body"><span class="faq-tag network">network</span> <strong>Streams fail with "MediaMTX HLS not ready".</strong> The Docker bridge gateway moved after a reboot. Run <code>docker compose down &amp;&amp; docker compose up -d</code> — the kit pins the subnet so this self-corrects.</div></div><div class="faq-item"><div class="faq-body"><span class="faq-tag inference">inference</span> <strong>Streams run but there are no boxes.</strong> Almost always the model&#39;s <em>label filter</em> is set to a class that is not in your scene, so every detection is discarded silently. Class <code>0</code> is <code>person</code> — make sure the filter includes what you actually want to detect.</div></div><div class="faq-item"><div class="faq-body"><span class="faq-tag inference">inference</span> <strong>The AIPU seems slow (~17 fps).</strong> The model is using one of the four AIPU cores. The dashboard forces all four; if you are testing with <code>inference.py</code> directly, add <code>--aipu-cores 4</code>.</div></div><div class="faq-item"><div class="faq-body"><span class="faq-tag hardware">hardware</span> <strong>axdevice finds no device.</strong> The driver is not loaded, or a stale handle is held. <code>sudo modprobe metis</code>, check <code>lsmod | grep metis</code>, and if needed <strong>power-cycle</strong> the board (not just reboot).</div></div><div class="faq-item"><div class="faq-body"><span class="faq-tag network">network</span> <strong>A camera will not connect.</strong> Test it with <code>ffprobe</code> first. The usual causes: the camera is on a different subnet, credentials are missing from the URL, or the stream path is wrong. A camera that is unreachable is isolated — the other cameras keep running.</div></div><div class="faq-item"><div class="faq-body"><span class="faq-tag setup">setup</span> <strong>The video timestamp is hours off from the real time.</strong> The board runs UTC by default; cameras usually burn in local time. Set <code>TZ</code> in the kit&#39;s <code>.env</code> if you want them to agree. This is cosmetic, not a fault.</div></div><div class="faq-item"><div class="faq-body"><span class="faq-tag docker">docker</span> <strong>docker only works with sudo.</strong> The group change from §05 has not applied. Log out and back in (or reboot). Do not work around it with <code>sudo</code> — the kit&#39;s scripts expect Docker to work as your user.</div></div><div class="faq-item"><div class="faq-body"><span class="faq-tag inference">inference</span> <strong>Latency grows the longer a session runs.</strong> Usually stacked sessions competing for the AIPU. <code>./stop.sh &amp;&amp; ./start.sh</code> clears it. A steady one-to-two-second delay, on the other hand, is normal.</div></div></div><div style="margin-top:48px;padding-top:24px;border-top:1px solid var(--border);color:var(--muted);font-size:13px;">WGtech AI Starter Kit — Metis Compute Board · Voyager SDK 1.6.0 · Metis driver 1.4.16 · RK3588<br/>Reference: <a href="https://docs.axelera.ai/">Axelera docs</a> · <a href="https://github.com/axelera-ai-hub/voyager-sdk">Voyager SDK</a> · <a href="https://github.com/WG-Tech-Solutions/Starter-Kit">Raspberry Pi edition</a></div></main>
+<script>
+  function copyCode(btn) {
+    const pre = btn.closest('.code-wrap').querySelector('pre');
+    const text = pre.innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      btn.classList.add('copied');
+      btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>Copied!';
+      setTimeout(() => {
+        btn.classList.remove('copied');
+        btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>Copy';
+      }, 2000);
+    });
+  }
+
+  const sections = document.querySelectorAll('section[id], div[id]');
+  const navLinks = document.querySelectorAll('nav a');
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        navLinks.forEach(a => a.classList.remove('active'));
+        const active = document.querySelector('nav a[href="#' + entry.target.id + '"]');
+        if (active) active.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+
+  sections.forEach(s => observer.observe(s));
+</script>
+</body></html>

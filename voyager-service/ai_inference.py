@@ -1,0 +1,1053 @@
+"""
+ai_inference.py
+---------------
+Session management and HLS writer for voyager-sdk.
+
+Architecture (MediaMTX-based):
+  All sources → MediaMTX (rtsp://127.0.0.1:8554/live)
+  Inference reads from RTSP directly via wginference.init
+  HLSWriter encodes annotated frames → /tmp/hls/slot-N/
+
+No frame writer, no directory buffer, no GStreamer init issues.
+17.5fps proven on RPi5 with RTSP source.
+"""
+
+import os
+import signal
+
+os.environ.setdefault("AXELERA_FRAMEWORK", os.getenv("SDK_DIR", "/home/voyager-sdk"))
+os.environ["GST_PLUGIN_FEATURE_RANK"] = "kmssink:0,waylandsink:0,ximagesink:0,xvimagesink:0"
+os.environ["GST_GL_PLATFORM"]         = "egl"
+os.environ["GST_GL_XINITTHREADS"]     = "0"
+os.environ.pop("DISPLAY", None)
+
+import cv2
+import time
+import yaml
+import logging
+import threading
+import subprocess
+import shutil
+import concurrent.futures
+from multiprocessing import Process, Queue, Value, Event, Array
+from pathlib import Path
+from queue import Empty, Full, Queue as ThreadQueue
+
+HLS_ROOT      = os.getenv("HLS_ROOT", "/tmp/hls")
+HLS_TIME      = 1
+HLS_LIST_SIZE = 5
+HLS_QUALITY   = 55
+SDK_DIR       = os.getenv("SDK_DIR", "/home/voyager-sdk")
+RTSP_URL      = os.getenv("RTSP_URL", "rtsp://127.0.0.1:8554/live")
+# The Metis AIPU has 4 cores; customers/*/test.yaml pins aipu_cores: 1, which
+# caps throughput at ~17fps regardless of camera count. With N>=3 cameras
+# supplying ~15fps each, that 1-core cap is what caused the ~90s multi-camera
+# lag (excess frames piling into GStreamer's buffers) — not frame dropping.
+# --aipu-cores 4 measured at 64.9fps vs 17.1fps on 1 core, comfortably above
+# a 3-camera ~45fps supply. Configurable in case a deployment needs to share
+# the AIPU with something else.
+AIPU_CORES    = os.getenv("AIPU_CORES", "4")
+
+_active_sessions = Value('i', 0)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)-7s %(message)s",
+)
+logger = logging.getLogger("voyager-inference")
+
+SESSIONS: dict = {}
+
+COCO_CLASS_MAP = {
+    0: "person", 1: "bicycle", 2: "car", 3: "motorcycle", 4: "airplane",
+    5: "bus", 6: "train", 7: "truck", 8: "boat", 9: "traffic light",
+    10: "fire hydrant", 11: "stop sign", 12: "parking meter", 13: "bench",
+    14: "bird", 15: "cat", 16: "dog", 17: "horse", 18: "sheep", 19: "cow",
+    20: "elephant", 21: "bear", 22: "zebra", 23: "giraffe", 24: "backpack",
+    25: "umbrella", 26: "handbag", 27: "tie", 28: "suitcase", 29: "frisbee",
+    30: "skis", 31: "snowboard", 32: "sports ball", 33: "kite",
+    34: "baseball bat", 35: "baseball glove", 36: "skateboard", 37: "surfboard",
+    38: "tennis racket", 39: "bottle", 40: "wine glass", 41: "cup",
+    42: "fork", 43: "knife", 44: "spoon", 45: "bowl", 46: "banana",
+    47: "apple", 48: "sandwich", 49: "orange", 50: "broccoli", 51: "carrot",
+    52: "hot dog", 53: "pizza", 54: "donut", 55: "cake", 56: "chair",
+    57: "couch", 58: "potted plant", 59: "bed", 60: "dining table",
+    61: "toilet", 62: "tv", 63: "laptop", 64: "mouse", 65: "remote",
+    66: "keyboard", 67: "cell phone", 68: "microwave", 69: "oven",
+    70: "toaster", 71: "sink", 72: "refrigerator", 73: "book", 74: "clock",
+    75: "vase", 76: "scissors", 77: "teddy bear", 78: "hair drier",
+    79: "toothbrush",
+}
+
+
+# ── Class map loader ─────────────────────────────────────────────────────────
+
+def _load_class_map(network_yaml: str) -> dict:
+    """
+    Parse network YAML → find data_dir_name → load data.yaml → return class map.
+    Falls back to COCO_CLASS_MAP if dataset name contains 'coco' or on any error.
+    """
+    try:
+        with open(network_yaml, "r") as f:
+            net = yaml.safe_load(f)
+
+        datasets = net.get("datasets", {})
+        data_dir_name = None
+        for ds_key, ds_val in datasets.items():
+            if isinstance(ds_val, dict) and "data_dir_name" in ds_val:
+                data_dir_name = ds_val["data_dir_name"]
+                logger.info("Found data_dir_name='%s' (key=%s) in %s", data_dir_name, ds_key, network_yaml)
+                break
+
+        if not data_dir_name:
+            logger.warning("No data_dir_name found in %s — using COCO class map", network_yaml)
+            return COCO_CLASS_MAP
+
+        # COCO shortcut
+        if "coco" in data_dir_name.lower():
+            logger.info("Dataset '%s' is COCO — using hardcoded class map", data_dir_name)
+            return COCO_CLASS_MAP
+
+        # Primary path: /home/voyager-sdk/data/{data_dir_name}/data.yaml
+        data_root = Path(SDK_DIR) / "data"
+        data_yaml_path = data_root / data_dir_name / "data.yaml"
+        logger.info("Looking for data.yaml at: %s", data_yaml_path)
+
+        # Fallback: search recursively under data_root for data.yaml in a dir matching name
+        if not data_yaml_path.exists():
+            logger.warning("Not found at primary path, searching under %s", data_root)
+            candidates = list(data_root.rglob("data.yaml"))
+            logger.info("data.yaml candidates found: %s", candidates)
+            if candidates:
+                # Pick the one whose parent dir name matches data_dir_name
+                matched = [c for c in candidates if c.parent.name == data_dir_name]
+                data_yaml_path = matched[0] if matched else candidates[0]
+                logger.info("Using data.yaml: %s", data_yaml_path)
+            else:
+                logger.warning("No data.yaml found anywhere under %s — using COCO", data_root)
+                return COCO_CLASS_MAP
+
+        with open(data_yaml_path, "r") as f:
+            dy = yaml.safe_load(f)
+
+        names = dy.get("names", [])
+        if isinstance(names, dict):
+            names = [names[k] for k in sorted(names.keys())]
+
+        if not names:
+            logger.warning("No class names in %s — using COCO class map", data_yaml_path)
+            return COCO_CLASS_MAP
+
+        class_map = {i: str(n) for i, n in enumerate(names)}
+        logger.info("Loaded class map: %s", class_map)
+        return class_map
+
+    except Exception as e:
+        logger.warning("Failed to load class map from %s: %s — using COCO", network_yaml, e)
+        return COCO_CLASS_MAP
+
+
+# ── FPS control ───────────────────────────────────────────────────────────────
+
+def _target_fps() -> int:
+    return 8
+
+
+# ── Frame helpers ─────────────────────────────────────────────────────────────
+
+def encode_jpeg(frame, quality=HLS_QUALITY):
+    ok, buf = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, quality])
+    return buf.tobytes() if ok else None
+
+
+def push_frame(q: Queue, jpeg: bytes) -> bool:
+    """Push a frame, dropping the oldest queued one if full so the queue
+    always holds the newest frame available. Returns True if a drop occurred
+    (queue was full) — callers may track this to confirm the drop-oldest
+    path is actually engaging, existing callers that ignore it are
+    unaffected."""
+    try:
+        q.put_nowait(jpeg)
+        return False
+    except Full:
+        try:
+            q.get_nowait()
+        except Empty:
+            pass
+        try:
+            q.put_nowait(jpeg)
+        except Full:
+            pass
+        return True
+
+
+def _probe_frame_timestamp(fr) -> "float | None":
+    """Best-effort: some SDK frame/meta objects carry a capture/production
+    timestamp. If found, `now - timestamp` is the most direct evidence of
+    where multi-camera latency lives — inter-arrival rate alone can't tell
+    "throttled but fresh" from "throttled because stale", since both look
+    identical from our loop's iteration rate (see
+    CLAUDE_CODE_FIX_MULTICAM_LATENCY.md). Returns None if no recognizable
+    timestamp field is found (nothing further to instrument without SDK
+    source access)."""
+    candidates = []
+    for attr in ("timestamp", "pts", "capture_time", "ts"):
+        candidates.append(getattr(fr, attr, None))
+    meta = getattr(fr, "meta", None)
+    if meta is not None:
+        for attr in ("timestamp", "pts", "capture_time", "ts"):
+            candidates.append(getattr(meta, attr, None))
+    for val in candidates:
+        if not isinstance(val, (int, float)) or val <= 0:
+            continue
+        # GStreamer PTS/DTS are usually relative nanoseconds since pipeline
+        # start, not wall-clock epoch — those fail this plausible-range
+        # check and get skipped rather than reported as a nonsense age.
+        if 1_600_000_000 < val < 4_000_000_000:          # epoch seconds
+            return float(val)
+        if 1_600_000_000_000 < val < 4_000_000_000_000:  # epoch milliseconds
+            return float(val) / 1000.0
+    return None
+
+
+# ── Per-source reachability probing ───────────────────────────────────────────
+#
+# All sources go into a single create_inference_stream call (deliberate —
+# matches Axelera's own inference.py, and it's what makes the source_id demux
+# work). That means we can't isolate a dead camera INSIDE that call. Instead
+# we control what gets passed INTO it: probe every source before each
+# (re)init and only include the ones that currently respond, so one dead
+# camera excludes just itself instead of failing the whole multi-source
+# pipeline. A background watcher re-probes excluded sources so they rejoin
+# automatically once reachable again.
+
+_ffprobe_missing_warned = False
+
+
+def _probe_source(url: str, timeout: float = 4.0) -> bool:
+    """Best-effort RTSP reachability check via ffprobe. Uses the same udp
+    transport as the main pipeline (the test camera resets RTSP-over-TCP
+    after ~2s) and a short timeout — this is a liveness probe, not a full
+    connection, so it should resolve quickly either way."""
+    global _ffprobe_missing_warned
+    try:
+        result = subprocess.run(
+            [
+                "ffprobe", "-v", "error",
+                "-rtsp_transport", "udp",
+                "-timeout", str(int(timeout * 1_000_000)),  # microseconds
+                "-i", url,
+                "-show_entries", "stream=codec_type",
+                "-of", "csv=p=0",
+            ],
+            capture_output=True, text=True, timeout=timeout + 2,
+        )
+        return result.returncode == 0 and bool(result.stdout.strip())
+    except FileNotFoundError:
+        # ffprobe isn't installed in this container — fail OPEN (assume
+        # reachable) rather than closed. Fail-closed here would exclude
+        # every source on every probe (init, mid-session, watcher) and
+        # permanently disable multi-camera, which is worse than just not
+        # having per-source isolation.
+        if not _ffprobe_missing_warned:
+            logger.warning("ffprobe not found — per-source reachability probing disabled; "
+                            "assuming all sources reachable")
+            _ffprobe_missing_warned = True
+        return True
+    except Exception:
+        return False
+
+
+def _probe_sources(urls: list) -> list:
+    """Probe all URLs in parallel (so N cameras cost ~one timeout, not N).
+    Returns a list[bool] index-aligned to `urls`."""
+    if not urls:
+        return []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(urls)) as ex:
+        return list(ex.map(_probe_source, urls))
+
+
+# ── HLS Writer ────────────────────────────────────────────────────────────────
+
+class HLSWriter:
+    def __init__(self, run_id: str, slot_id: int, frame_queue: Queue):
+        self.run_id      = run_id
+        self.slot_id     = slot_id
+        self.frame_queue = frame_queue
+        self.out_dir     = os.path.join(HLS_ROOT, f"slot-{slot_id}")
+        self.playlist    = os.path.join(self.out_dir, "index.m3u8")
+        self._ffmpeg     = None
+        self._thread     = None
+        self._stop       = threading.Event()
+
+    def start(self):
+        os.makedirs(self.out_dir, exist_ok=True)
+        for f in os.listdir(self.out_dir):
+            try:
+                os.remove(os.path.join(self.out_dir, f))
+            except Exception:
+                pass
+
+        fps = _target_fps()
+        cmd = [
+            "ffmpeg", "-loglevel", "warning",
+            "-f", "image2pipe", "-vcodec", "mjpeg",
+            "-r", str(fps), "-i", "pipe:0",
+            "-vsync", "vfr",
+            "-vf", "scale=1280:720:force_original_aspect_ratio=decrease",
+            "-vcodec", "libx264",
+            "-preset", "ultrafast", "-tune", "zerolatency",
+            "-pix_fmt", "yuv420p",
+            "-b:v", "600k",
+            "-maxrate", "800k",
+            "-bufsize", "1200k",
+            "-g", str(fps),
+            "-sc_threshold", "0", "-bf", "0",
+            "-f", "hls",
+            "-hls_time", str(HLS_TIME),
+            "-hls_list_size", str(HLS_LIST_SIZE),
+            "-hls_flags", "delete_segments+independent_segments+temp_file",
+            "-hls_segment_filename", os.path.join(self.out_dir, "seg%05d.ts"),
+            self.playlist,
+        ]
+
+        self._ffmpeg = subprocess.Popen(
+            cmd, stdin=subprocess.PIPE,
+            stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+        )
+
+        def _log():
+            for line in self._ffmpeg.stderr:
+                logger.debug("[HLS:%s] %s", self.run_id, line.decode(errors="replace").rstrip())
+        threading.Thread(target=_log, daemon=True).start()
+
+        self._stop.clear()
+        self._thread = threading.Thread(
+            target=self._pump, daemon=True, name=f"hls-{self.run_id}"
+        )
+        self._thread.start()
+        logger.info("[HLS:%s] started → %s (fps=%d)", self.run_id, self.playlist, fps)
+
+    def _pump(self):
+        while not self._stop.is_set():
+            if self._ffmpeg.poll() is not None:
+                break
+            try:
+                jpeg = self.frame_queue.get(timeout=1.0)
+            except Empty:
+                continue
+            try:
+                self._ffmpeg.stdin.write(jpeg)
+                self._ffmpeg.stdin.flush()
+            except (BrokenPipeError, OSError):
+                break
+
+    def wait_for_playlist(self, timeout: float = 30.0) -> bool:
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            if os.path.exists(self.playlist):
+                try:
+                    with open(self.playlist) as f:
+                        if ".ts" in f.read():
+                            return True
+                except Exception:
+                    pass
+            time.sleep(0.3)
+        return False
+
+    def stop(self):
+        self._stop.set()
+        if self._ffmpeg:
+            try:
+                self._ffmpeg.stdin.close()
+            except Exception:
+                pass
+            try:
+                self._ffmpeg.terminate()
+                self._ffmpeg.wait(timeout=5)
+            except Exception:
+                try:
+                    self._ffmpeg.kill()
+                except Exception:
+                    pass
+            self._ffmpeg = None
+        try:
+            shutil.rmtree(self.out_dir)
+        except Exception:
+            pass
+
+
+# ── Frame hub (fan-out for MJPEG live view) ───────────────────────────────────
+#
+# The inference child process writes JPEGs into one multiprocessing Queue per
+# source (one hub for annotated frames feeding HLSWriter, and — since Phase 3
+# — a second hub per source for the pre-overlay raw frame). HLSWriter used to
+# `.get()` directly from the annotated queue — fine when it was the only
+# consumer, but Queue.get() is destructive: a second consumer (an MJPEG
+# viewer) would steal every other frame instead of seeing every frame
+# HLSWriter sees. FrameHub drains the mp Queue once and republishes each JPEG
+# to HLSWriter's own in-process queue (annotated hub only — the raw hub has
+# no HLS/recording consumer, so `with_hls_queue=False` skips that bookkeeping)
+# plus any number of live MJPEG subscriber queues.
+
+class FrameHub:
+    def __init__(self, mp_frame_queue: Queue, with_hls_queue: bool = True, label: str = ""):
+        self.mp_frame_queue = mp_frame_queue
+        self.hls_queue: "ThreadQueue | None" = ThreadQueue(maxsize=30) if with_hls_queue else None
+        self.label = label
+        self._subscribers: list[ThreadQueue] = []
+        self._sub_lock = threading.Lock()
+        self._stop = threading.Event()
+        self._thread = threading.Thread(target=self._run, daemon=True, name="frame-hub")
+
+    def start(self):
+        self._thread.start()
+
+    def _run(self):
+        # DIAG (CLAUDE_CODE_FIX_STOP_AND_LATENCY.md): subscriber count is the
+        # direct signal for the "MJPEG viewer never disconnects server-side"
+        # leak class — each abandoned browser connection that isn't properly
+        # unsubscribed adds one more iteration to the per-frame fan-out below
+        # forever, which is exactly the kind of thing that degrades frame
+        # throughput gradually rather than all at once. Logged at debug level
+        # every ~5s so it doesn't flood the log at info level.
+        last_diag = time.time()
+        while not self._stop.is_set():
+            try:
+                jpeg = self.mp_frame_queue.get(timeout=1.0)
+            except Empty:
+                continue
+            if self.hls_queue is not None:
+                push_frame(self.hls_queue, jpeg)
+            with self._sub_lock:
+                subs = list(self._subscribers)
+            for q in subs:
+                push_frame(q, jpeg)
+
+            now = time.time()
+            if now - last_diag >= 5.0:
+                try:
+                    qdepth = self.mp_frame_queue.qsize()
+                except Exception:
+                    qdepth = -1
+                logger.debug("[hub:%s] subscribers=%d mp_qdepth=%s", self.label, len(subs), qdepth)
+                last_diag = now
+
+    def subscribe(self) -> ThreadQueue:
+        # Small buffer — an MJPEG viewer only ever wants the latest frame;
+        # push_frame() already drops the oldest one when full.
+        q: ThreadQueue = ThreadQueue(maxsize=5)
+        with self._sub_lock:
+            self._subscribers.append(q)
+        return q
+
+    def unsubscribe(self, q: ThreadQueue) -> None:
+        with self._sub_lock:
+            if q in self._subscribers:
+                self._subscribers.remove(q)
+
+    def stop(self):
+        self._stop.set()
+
+
+def get_hub_for_slot(slot_id: int) -> "FrameHub | None":
+    for session in SESSIONS.values():
+        for i, w in enumerate(session.get("writers", [])):
+            if w.slot_id == slot_id:
+                hubs = session.get("hubs", [])
+                return hubs[i] if i < len(hubs) else None
+    return None
+
+
+def get_raw_hub_for_slot(slot_id: int) -> "FrameHub | None":
+    """Same slot-id → index lookup as get_hub_for_slot, but for the raw
+    (pre-overlay) hub — index-aligned with `writers`/`hubs` since all three
+    lists are built together per source in start_session."""
+    for session in SESSIONS.values():
+        for i, w in enumerate(session.get("writers", [])):
+            if w.slot_id == slot_id:
+                raw_hubs = session.get("raw_hubs", [])
+                return raw_hubs[i] if i < len(raw_hubs) else None
+    return None
+
+
+# ── Inference worker ──────────────────────────────────────────────────────────
+
+def inference_worker(run_id: str, network_yaml: str, sources: list, base_slot: int,
+                     frame_queues: list, raw_frame_queues: list, source_status, stop_event):
+    """
+    Single wginference process reading currently-reachable sources at once
+    (Axelera's own inference.py pattern — one create_inference_stream call,
+    multiple positional source URLs). `sources` is the FULL, fixed list
+    requested at session start — camera i always owns slot base_slot+i and
+    frame_queues[i]/raw_frame_queues[i], regardless of whether it's currently
+    included in the live call. `source_status` is a shared (multiprocessing)
+    array of 1/0 flags, index-aligned to `sources`, updated here and read by
+    the backend (via get_status()) to show per-camera up/down state.
+
+    Only sources with source_status[i] truthy are passed into
+    wginference.init() — a dead camera is excluded from THAT call instead of
+    failing the whole pipeline for every camera. Since excluding sources
+    shifts fr.source_id (positional in the reduced arg list), `active_indices`
+    maps each call's source_id back to the original camera index before
+    routing to frame_queues/raw_frame_queues. A background watcher re-probes
+    excluded sources and signals a fast reinit when one recovers; a source
+    dying mid-session is caught by the normal exception handler below, which
+    re-probes everyone and excludes whichever one(s) actually failed before
+    the next attempt — the SDK call itself can't tolerate a source dying
+    without failing, so "restart with the survivors" is the isolation
+    mechanism, not true in-pipeline isolation.
+
+    NEVER add --frame-rate here — on this board's mppvideodec it aborts the
+    process with "inplace_addstreamid: meta_key already exists".
+    """
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
+
+    logger.info("[%s] inference worker starting (base_slot=%d, sources=%d)",
+                run_id, base_slot, len(sources))
+
+    try:
+        import wginference
+        from axelera.app import config, yaml_parser, inf_tracers
+
+        # Load class map dynamically from dataset yaml
+        class_map = _load_class_map(network_yaml)
+        wginference.set_class_map(class_map)
+        logger.info("[%s] class map set: %s", run_id, class_map)
+
+        parser         = config.create_inference_argparser(yaml_parser.get_network_yaml_info())
+        total_frames   = 0
+        logged_sources = 0  # bring-up aid: log fr.source_id for the first ~20 frames
+
+        # Background watcher: re-probes currently-excluded sources so they
+        # rejoin automatically once reachable again, without waiting for an
+        # unrelated error to bring the whole session back to the top of the
+        # retry loop. Signals via reinit_event; the frame loop below checks
+        # it and breaks out promptly to pick up the recovered source.
+        reinit_event = threading.Event()
+
+        def _source_watcher():
+            while not stop_event.is_set():
+                for i, url in enumerate(sources):
+                    if stop_event.is_set():
+                        return
+                    if not source_status[i] and _probe_source(url):
+                        logger.info("[%s] source %d recovered: %s", run_id, i, url)
+                        source_status[i] = 1
+                        reinit_event.set()
+                for _ in range(20):  # ~10s between probe passes, responsive to stop_event
+                    if stop_event.is_set():
+                        return
+                    time.sleep(0.5)
+
+        threading.Thread(target=_source_watcher, daemon=True, name=f"src-watch-{run_id}").start()
+
+        # Diagnostic instrumentation (CLAUDE_CODE_FIX_MULTICAM_LATENCY.md,
+        # extended per CLAUDE_CODE_FIX_STOP_AND_LATENCY.md): per-source
+        # arrival rate, queue-drop counts, per-stage timing, and (if the SDK
+        # exposes one) frame staleness, logged every ~5s per source — plus
+        # an aggregate loop_fps below. Determines whether latency growth is
+        # reachable from our own code (this loop falling behind the combined
+        # camera arrival rate, so it deficit-spends into a backlog somewhere
+        # upstream) or something else entirely (e.g. FrameHub subscriber
+        # accumulation — see the per-hub subscriber/qdepth log in FrameHub).
+        _arrival_stats: dict = {}
+        # Aggregate loop iteration rate across ALL sources combined — the
+        # number to compare directly against total camera supply (e.g. ~33fps
+        # for 3 cams at ~11fps each). If this is below supply, the deficit is
+        # somewhere in THIS loop's own per-frame work (timed below); if it
+        # keeps pace, the backlog is elsewhere (e.g. FrameHub fan-out, or
+        # upstream in the SDK/GStreamer).
+        _loop_stats = {"window_start": time.time(), "count": 0}
+
+        while not stop_event.is_set():
+            stream = None
+            try:
+                # Only pass currently-reachable sources into the SDK call —
+                # excluding a dead one from THIS list is what keeps it from
+                # failing the whole pipeline. active_indices maps each
+                # resulting fr.source_id (positional in active_sources) back
+                # to the original camera index, since excluding a source
+                # shifts the positions of the ones after it.
+                active_indices = [i for i in range(len(sources)) if source_status[i]]
+                if not active_indices:
+                    logger.warning("[%s] no reachable sources — reprobing in 5s", run_id)
+                    for i, ok in enumerate(_probe_sources(sources)):
+                        source_status[i] = 1 if ok else 0
+                    for _ in range(10):
+                        if stop_event.is_set():
+                            break
+                        time.sleep(0.5)
+                    continue
+                active_sources = [sources[i] for i in active_indices]
+                if len(active_sources) < len(sources):
+                    excluded = [sources[i] for i in range(len(sources)) if i not in active_indices]
+                    logger.warning("[%s] starting with %d/%d source(s) — excluded (unreachable): %s",
+                                   run_id, len(active_sources), len(sources), excluded)
+
+                logger.info("[%s] connecting to %d source(s): %s (aipu_cores=%s)",
+                            run_id, len(active_sources), active_sources, AIPU_CORES)
+                args    = parser.parse_args([
+                    network_yaml,
+                    *active_sources,
+                    "--no-display",
+                    "--rtsp-latency", "0",
+                    "--aipu-cores", AIPU_CORES,
+                ])
+                tracers = inf_tracers.create_tracers_from_args(args)
+                stream  = wginference.init(args, tracers)
+                logger.info("[%s] stream initialized", run_id)
+
+                for fr in stream:
+                    if stop_event.is_set():
+                        break
+                    if reinit_event.is_set():
+                        logger.info("[%s] source availability changed — reinitializing", run_id)
+                        reinit_event.clear()
+                        break
+                    if fr is None or fr.image is None:
+                        continue
+
+                    # Aggregate loop rate — every frame this loop actually
+                    # receives from the SDK, across all sources combined,
+                    # regardless of what happens to it afterward.
+                    _loop_stats["count"] += 1
+                    loop_wall_now = time.time()
+                    loop_elapsed = loop_wall_now - _loop_stats["window_start"]
+                    if loop_elapsed >= 5.0:
+                        logger.debug("[%s] DIAG loop_fps=%.1f (aggregate, all sources)",
+                                     run_id, _loop_stats["count"] / loop_elapsed)
+                        _loop_stats["window_start"] = loop_wall_now
+                        _loop_stats["count"] = 0
+
+                    active_sid = getattr(fr, "source_id", 0) or 0
+                    if logged_sources < 20:
+                        logger.info("[%s] frame source_id=%s", run_id, active_sid)
+                        logged_sources += 1
+                    if active_sid >= len(active_indices):
+                        continue
+                    sid = active_indices[active_sid]  # map back to the original camera index
+                    if sid >= len(frame_queues):
+                        continue
+
+                    now = time.time()
+                    st = _arrival_stats.setdefault(sid, {
+                        "window_start": now, "count": 0, "drops": 0, "raw_drops": 0,
+                        "t_asarray": 0.0, "t_raw_encode": 0.0, "t_raw_push": 0.0,
+                        "t_overlay": 0.0, "t_ann_encode": 0.0, "t_ann_push": 0.0,
+                    })
+                    st["count"] += 1
+
+                    t0 = time.perf_counter()
+                    frame = fr.image.asarray('BGR').copy()
+                    t1 = time.perf_counter()
+                    st["t_asarray"] += t1 - t0
+
+                    # Snapshot the raw (pre-overlay) frame BEFORE draw_overlays_bgr
+                    # runs — it draws directly onto `frame` in place and returns
+                    # that same array, so this must happen first or the "raw"
+                    # JPEG would already have boxes on it.
+                    raw_jpeg = encode_jpeg(frame)
+                    t2 = time.perf_counter()
+                    st["t_raw_encode"] += t2 - t1
+                    if raw_jpeg and sid < len(raw_frame_queues):
+                        if push_frame(raw_frame_queues[sid], raw_jpeg):
+                            st["raw_drops"] += 1
+                    t3 = time.perf_counter()
+                    st["t_raw_push"] += t3 - t2
+
+                    frame, _, _ = wginference.draw_overlays_bgr(frame, fr.meta)
+                    t4 = time.perf_counter()
+                    st["t_overlay"] += t4 - t3
+
+                    jpeg = encode_jpeg(frame)
+                    t5 = time.perf_counter()
+                    st["t_ann_encode"] += t5 - t4
+
+                    if jpeg:
+                        if push_frame(frame_queues[sid], jpeg):
+                            st["drops"] += 1
+                    t6 = time.perf_counter()
+                    st["t_ann_push"] += t6 - t5
+
+                    window_elapsed = now - st["window_start"]
+                    if window_elapsed >= 5.0:
+                        n = max(1, st["count"])
+                        fps = st["count"] / window_elapsed
+                        try:
+                            qdepth = frame_queues[sid].qsize()
+                        except Exception:
+                            qdepth = -1  # qsize() unsupported on some platforms
+                        try:
+                            raw_qdepth = raw_frame_queues[sid].qsize()
+                        except Exception:
+                            raw_qdepth = -1
+                        ts = _probe_frame_timestamp(fr)
+                        age_str = f"{now - ts:.1f}s" if ts is not None else "n/a"
+                        avg_ms = {k: (v / n) * 1000 for k, v in st.items() if k.startswith("t_")}
+                        total_ms = sum(avg_ms.values())
+                        logger.debug(
+                            "[%s] DIAG src=%d arrival_fps=%.1f drops=%d raw_drops=%d "
+                            "qdepth=%s raw_qdepth=%s frame_age=%s avg_ms/frame: "
+                            "asarray=%.2f raw_encode=%.2f raw_push=%.2f overlay=%.2f "
+                            "ann_encode=%.2f ann_push=%.2f TOTAL=%.2f",
+                            run_id, sid, fps, st["drops"], st["raw_drops"],
+                            qdepth, raw_qdepth, age_str,
+                            avg_ms["t_asarray"], avg_ms["t_raw_encode"], avg_ms["t_raw_push"],
+                            avg_ms["t_overlay"], avg_ms["t_ann_encode"], avg_ms["t_ann_push"],
+                            total_ms,
+                        )
+                        st["window_start"] = now
+                        st["count"] = 0
+                        st["drops"] = 0
+                        st["raw_drops"] = 0
+                        for k in list(st.keys()):
+                            if k.startswith("t_"):
+                                st[k] = 0.0
+
+                    total_frames += 1
+                    if total_frames % 200 == 0:
+                        logger.info("[%s] %d frames processed", run_id, total_frames)
+
+                if not stop_event.is_set():
+                    logger.info("[%s] stream ended — restarting in 2s", run_id)
+                    time.sleep(2)
+
+            except Exception as e:
+                if stop_event.is_set():
+                    break
+
+                # One of the active sources likely died — re-probe everyone
+                # (not just previously-excluded ones) so the next attempt
+                # excludes whichever one(s) actually failed instead of
+                # retrying the same set and failing again immediately. If
+                # nothing actually changed, this is a harmless no-op.
+                for i, ok in enumerate(_probe_sources(sources)):
+                    source_status[i] = 1 if ok else 0
+
+                err_str = str(e)
+                # MediaMTX down or auth error — wait longer before retry
+                if "authentication" in err_str.lower() or "NoneType" in err_str or "connection" in err_str.lower():
+                    logger.warning("[%s] MediaMTX unavailable: %s — waiting 8s", run_id, e)
+                    for _ in range(16):  # 8s in 0.5s chunks so stop_event is checked
+                        if stop_event.is_set():
+                            break
+                        time.sleep(0.5)
+                else:
+                    logger.warning("[%s] error: %s — retrying in 3s", run_id, e)
+                    for _ in range(6):
+                        if stop_event.is_set():
+                            break
+                        time.sleep(0.5)
+            finally:
+                # Per-pipeline teardown only. Do NOT call Gst.deinit() here — it
+                # globally de-inits GStreamer for the whole process and must
+                # happen at most once, at final exit. Calling it between
+                # retries kills rtspsrc/axinplace/etc. and the next init aborts
+                # with "GStreamer should not be deinitialized a second time."
+                # (The retry loop is hit immediately with multiple sources
+                # when any one of them fails to connect.)
+                if stream is not None:
+                    try:
+                        stream.stop()
+                    except Exception as te:
+                        logger.debug("[%s] stream.stop() failed: %s", run_id, te)
+
+    except Exception:
+        logger.exception("[%s] inference worker crashed", run_id)
+        raise
+
+
+# ── Session management ────────────────────────────────────────────────────────
+
+def start_session(run_id: str, source_type: str, sources, network_yaml: str,
+                  base_slot: int) -> bool:
+    """
+    One wginference process for ALL of `sources`, one HLSWriter per source at
+    slots base_slot .. base_slot + len(sources) - 1. `sources` may be a single
+    string (legacy single-camera call) or a list (multi-camera).
+    """
+    if run_id in SESSIONS:
+        raise Exception(f"Session {run_id} already exists")
+
+    if isinstance(sources, str):
+        sources = [sources]
+    sources = list(sources)
+    if not sources:
+        raise Exception("At least one source is required")
+
+    with _active_sessions.get_lock():
+        _active_sessions.value += 1
+
+    frame_queues     = [Queue(maxsize=30) for _ in sources]
+    # Smaller cap than frame_queues — raw has no HLSWriter/ffmpeg-pipe stall
+    # to buffer against, just the FrameHub thread draining it into MJPEG
+    # subscriber queues, so it doesn't need as much slack. Bounded + drop-
+    # oldest either way (see push_frame), so this only affects worst-case
+    # memory, not correctness.
+    raw_frame_queues = [Queue(maxsize=10) for _ in sources]
+    stop_event       = Event()
+
+    # Pre-flight probe so a dead camera doesn't even delay session start,
+    # let alone take the others down with it — excluded up front, retried by
+    # the worker's background watcher. If NOTHING probes reachable, don't
+    # exclude everything (e.g. a startup race for the legacy single-camera
+    # path, where this probes MediaMTX's relay before it's finished coming
+    # up) — fall back to the full list and let the existing connection-retry
+    # loop handle it.
+    initial_up = _probe_sources(sources)
+    if not any(initial_up):
+        initial_up = [True] * len(sources)
+    # lock=False: we only need independent single-byte flag reads/writes per
+    # index (atomic on any real hardware), not cross-element transactions, so
+    # there's no need for the default internal semaphore-based lock. That
+    # lock becomes a liability here: if a worker process is ever killed
+    # (SIGKILL, which can't be caught) while mid-write to this array, a
+    # semaphore-based lock isn't released by the kernel on process death the
+    # way e.g. an flock is — it can stay stuck forever, hanging or crashing
+    # every future read of THIS session's source_status (get_status(),
+    # polled every ~3s by /stream/status while a stream is live, and by
+    # _cleanup_inference_slots() on every Stop).
+    source_status = Array('b', [1 if ok else 0 for ok in initial_up], lock=False)
+    for i, ok in enumerate(initial_up):
+        if not ok:
+            logger.warning("[%s] source %d unreachable at start — excluding: %s", run_id, i, sources[i])
+
+    process = Process(
+        target=inference_worker,
+        args=(run_id, network_yaml, sources, base_slot, frame_queues, raw_frame_queues, source_status, stop_event),
+        daemon=False,
+    )
+    process.start()
+
+    # Move process into its own process group and store pgid for clean kill
+    pgid = None
+    for _ in range(10):
+        try:
+            os.setpgid(process.pid, process.pid)
+            pgid = process.pid
+            break
+        except OSError:
+            time.sleep(0.05)
+
+    hubs     = []
+    raw_hubs = []
+    writers  = []
+    for i in range(len(sources)):
+        slot = base_slot + i
+        hub = FrameHub(frame_queues[i], label=f"{run_id}-slot{slot}-inf")
+        hub.start()
+        w = HLSWriter(f"{run_id}-s{i}", slot, hub.hls_queue)
+        w.start()
+        hubs.append(hub)
+        writers.append(w)
+
+        raw_hub = FrameHub(raw_frame_queues[i], with_hls_queue=False, label=f"{run_id}-slot{slot}-raw")
+        raw_hub.start()
+        raw_hubs.append(raw_hub)
+
+    SESSIONS[run_id] = {
+        "process":       process,
+        "pgid":          pgid,
+        "writers":       writers,
+        "hubs":          hubs,
+        "raw_hubs":      raw_hubs,
+        "stop_event":    stop_event,
+        "base_slot":     base_slot,
+        "source_type":   source_type,
+        "sources":       sources,
+        "source_status": source_status,
+        "network":       network_yaml,
+    }
+
+    # Watchdog: restart the inference process if it crashes (e.g. std::system_error from wginference)
+    def _watchdog():
+        while not stop_event.is_set():
+            proc = SESSIONS.get(run_id, {}).get("process")
+            if proc and not proc.is_alive() and not stop_event.is_set():
+                exitcode = proc.exitcode
+                logger.warning("[%s] process died (exitcode=%s) — restarting", run_id, exitcode)
+                # Wait for AIPU to settle
+                time.sleep(3)
+                if stop_event.is_set():
+                    break
+                # Re-check right before actually spawning, and again right
+                # after: stop_session() may have run during the 3s settle
+                # sleep above. Starting a process here that stop_session()
+                # already finished tearing down would leave it completely
+                # untracked (no SESSIONS entry, no pgid anywhere) — invisible
+                # to /inference/status and unkillable except by finding it
+                # by hand, which is exactly the kind of orphan that stacks
+                # up across repeated stop/start cycles and competes for the
+                # AIPU forever.
+                if stop_event.is_set() or run_id not in SESSIONS:
+                    break
+                try:
+                    new_proc = Process(
+                        target=inference_worker,
+                        args=(run_id, network_yaml, sources, base_slot, frame_queues,
+                              raw_frame_queues, source_status, stop_event),
+                        daemon=False,
+                    )
+                    if stop_event.is_set() or run_id not in SESSIONS:
+                        break
+                    new_proc.start()
+                    if stop_event.is_set() or run_id not in SESSIONS:
+                        # Stop landed while we were spawning — this process
+                        # is now our responsibility to clean up since no
+                        # SESSIONS entry will ever reference it.
+                        logger.warning("[%s] stop requested mid-restart — killing orphaned pid=%d",
+                                       run_id, new_proc.pid)
+                        try:
+                            os.setpgid(new_proc.pid, new_proc.pid)
+                            os.killpg(new_proc.pid, signal.SIGKILL)
+                        except Exception:
+                            try:
+                                new_proc.kill()
+                            except Exception:
+                                pass
+                        break
+                    new_pgid = None
+                    for _ in range(10):
+                        try:
+                            os.setpgid(new_proc.pid, new_proc.pid)
+                            new_pgid = new_proc.pid
+                            break
+                        except OSError:
+                            time.sleep(0.05)
+                    if run_id in SESSIONS:
+                        SESSIONS[run_id]["process"] = new_proc
+                        SESSIONS[run_id]["pgid"]    = new_pgid
+                    logger.info("[%s] restarted (pid=%d)", run_id, new_proc.pid)
+                except Exception as e:
+                    logger.error("[%s] watchdog restart failed: %s", run_id, e)
+                    break
+            time.sleep(1)
+
+    threading.Thread(target=_watchdog, daemon=True, name=f"watchdog-{run_id}").start()
+
+    logger.info("[%s] session started (pid=%d, slots=%d..%d)",
+                run_id, process.pid, base_slot, base_slot + len(sources) - 1)
+    return True
+
+
+def stop_session(run_id: str) -> bool:
+    if run_id not in SESSIONS:
+        return False
+
+    session = SESSIONS.pop(run_id)
+
+    with _active_sessions.get_lock():
+        _active_sessions.value = max(0, _active_sessions.value - 1)
+
+    session["stop_event"].set()
+
+    proc = session["process"]
+    pgid = session.get("pgid")
+
+    # Graceful first: inference_worker ignores SIGINT/SIGTERM on purpose (so
+    # a Ctrl+C aimed at the whole stack doesn't kill it prematurely) — the
+    # ONLY cooperative way to stop it is stop_event, which its own loop
+    # checks per-frame and, on the way out, runs `stream.stop()` in a
+    # finally block. That's what asks the SDK to release the AIPU device
+    # cleanly. Jumping straight to SIGKILL (as this used to) skips that
+    # finally block entirely — SIGKILL can't be caught or deferred — so the
+    # driver never sees a clean release: "Failed to detach ... Device or
+    # resource busy" on the next session's init, and the old process either
+    # lingers or leaves the device in a bad state instead of actually dying.
+    # Frames arrive at least every second or so in the healthy case, so the
+    # loop should notice stop_event and exit well within this window.
+    proc.join(timeout=6)
+
+    if proc.is_alive():
+        logger.warning("[%s] did not exit gracefully within 6s — force-killing "
+                        "(AIPU device may not release cleanly)", run_id)
+        if pgid:
+            try:
+                os.killpg(pgid, signal.SIGKILL)
+                logger.info("[%s] killed process group %d", run_id, pgid)
+            except Exception as e:
+                logger.warning("[%s] killpg failed: %s", run_id, e)
+        try:
+            proc.kill()
+        except Exception:
+            pass
+        proc.join(timeout=3)
+
+    if proc.is_alive():
+        logger.error("[%s] process %d still alive after SIGKILL — this should not happen",
+                     run_id, proc.pid)
+    else:
+        logger.info("[%s] worker process exited (pid=%s, exitcode=%s)",
+                    run_id, proc.pid, proc.exitcode)
+
+    # Small pause to let the process fully exit before cleanup
+    time.sleep(0.5)
+
+    # Sweep any leftover processes in our group (e.g. a probe subprocess that
+    # was mid-flight). Scoped to THIS session's pgid — do NOT pkill -9 all
+    # wginference, that would kill other active sessions.
+    if pgid:
+        try:
+            os.killpg(pgid, signal.SIGKILL)
+        except Exception:
+            pass
+
+    # Give AIPU driver time to release cores
+    time.sleep(3)
+
+    for w in session.get("writers", []):
+        w.stop()
+    for hub in session.get("hubs", []):
+        hub.stop()
+    for hub in session.get("raw_hubs", []):
+        hub.stop()
+
+    logger.info("[%s] session stopped", run_id)
+    return True
+
+
+def get_status() -> list:
+    result = []
+    for rid, s in SESSIONS.items():
+        try:
+            source_status = list(s["source_status"])
+        except Exception as e:
+            # Never let one session's reachability array take down status
+            # reporting for every session (or the whole endpoint) — this is
+            # polled every ~3s by the frontend while a stream is live, AND is
+            # how the backend discovers what to stop on every Stop click.
+            logger.warning("[%s] failed to read source_status: %s", rid, e)
+            source_status = None
+        result.append({
+            "run_id":        rid,
+            "base_slot":     s["base_slot"],
+            "slots":         [w.slot_id for w in s["writers"]],
+            "pid":           s["process"].pid,
+            "alive":         s["process"].is_alive(),
+            "exitcode":      s["process"].exitcode,
+            "playlists":     [w.playlist for w in s["writers"]],
+            "sources":       s["sources"],
+            # 1 = currently included in the live wginference.init() call,
+            # 0 = excluded (unreachable at last probe, being retried in the
+            # background) — index-aligned to `sources`. None if it couldn't
+            # be read (see above).
+            "source_status": source_status,
+            "network":       s["network"],
+        })
+    return result
+
+
+def shutdown_handler(sig=None, frame=None):
+    logger.info("Shutting down all inference sessions")
+    for rid in list(SESSIONS.keys()):
+        try:
+            stop_session(rid)
+        except Exception:
+            logger.exception("Error stopping session %s", rid)
+
+
+if threading.current_thread() is threading.main_thread():
+    signal.signal(signal.SIGINT,  shutdown_handler)
+    signal.signal(signal.SIGTERM, shutdown_handler)

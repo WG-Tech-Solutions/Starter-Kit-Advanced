@@ -1,0 +1,11 @@
+# Generated at runtime (may contain camera credentials)
+.env
+
+# Created automatically on first run
+data/
+*.log
+mediamtx.log
+
+# OS
+.DS_Store
+Thumbs.db
