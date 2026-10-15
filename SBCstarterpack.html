@@ -1,0 +1,1567 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>WGtech AI Metis Board: Setup Guide</title>
+  <style>
+    :root {
+      --ink: #111827;
+      --mute: #4b5563;
+      --blue: #1257d6;
+      --blue2: #0a3a94;
+      --tint: #eef4ff;
+      --line: #d6e2f7;
+      --teal: #0e8fa8;
+      --violet: #6d4bd8;
+      --green: #12805c;
+      --gtint: #eafaf3;
+      --amber: #b45309;
+      --atint: #fff5ea;
+      box-sizing: border-box;
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-bottom: env(safe-area-inset-bottom, 0px)
+    }
+
+    html {
+      scroll-padding-top: env(safe-area-inset-top, 0px);
+      scroll-behavior: smooth
+    }
+
+    * {
+      box-sizing: border-box
+    }
+
+    body {
+      margin: 0;
+      background: #fff;
+      color: var(--ink);
+      font: 16px/1.65 "Segoe UI", system-ui, -apple-system, Roboto, sans-serif
+    }
+
+    aside {
+      position: fixed;
+      inset: 0 auto 0 0;
+      width: 270px;
+      border-right: 1px solid var(--line);
+      background: #fff;
+      overflow-y: auto;
+      padding: 26px 0
+    }
+
+    .brand {
+      padding: 0 24px 18px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 12px
+    }
+
+    .brand small {
+      color: var(--blue);
+      letter-spacing: .2em;
+      font-weight: 700;
+      font-size: .78rem
+    }
+
+    .brand strong {
+      display: block;
+      font-size: 1.15rem;
+      color: var(--ink);
+      margin: 2px 0 8px
+    }
+
+    .pill {
+      background: var(--violet);
+      color: #fff;
+      border-radius: 5px;
+      padding: 2px 9px;
+      font: .74rem ui-monospace, Menlo, monospace
+    }
+
+    aside a {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      padding: 8px 24px;
+      color: var(--mute);
+      text-decoration: none;
+      font-size: .95rem;
+      border-left: 3px solid transparent
+    }
+
+    aside a i {
+      font: normal .74rem ui-monospace, Menlo, monospace;
+      color: var(--violet);
+      width: 1.6em
+    }
+
+    aside a:hover,
+    aside a:focus-visible {
+      background: var(--tint);
+      color: var(--blue);
+      border-left-color: var(--blue)
+    }
+
+    main {
+      margin-left: 270px;
+      padding: 48px 44px 70px;
+      max-width: 1010px
+    }
+
+    .eyebrow {
+      color: var(--blue);
+      font-weight: 700;
+      letter-spacing: .16em;
+      font-size: .8rem
+    }
+
+    .eyebrow:before {
+      content: "";
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      background: var(--blue);
+      border-radius: 50%;
+      margin-right: 8px
+    }
+
+    h1 {
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      line-height: 1.08;
+      margin: 14px 0 16px;
+      font-weight: 800;
+      letter-spacing: -.01em
+    }
+
+    h1 span {
+      color: var(--teal)
+    }
+
+    .lead {
+      max-width: 62ch;
+      color: var(--mute)
+    }
+
+    .box {
+      border: 1px solid var(--line);
+      background: var(--tint);
+      border-radius: 10px;
+      padding: 14px 18px;
+      margin: 20px 0
+    }
+
+    .box b {
+      color: var(--blue2)
+    }
+
+    .box ul {
+      margin: 6px 0 0;
+      padding-left: 20px
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 14px;
+      margin: 18px 0
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 12px 16px;
+      background: #f8fbff
+    }
+
+    .card small {
+      color: var(--mute);
+      letter-spacing: .12em;
+      font-size: .72rem
+    }
+
+    .card p {
+      margin: 4px 0 0;
+      font: 600 .9rem ui-monospace, Menlo, monospace;
+      color: var(--ink)
+    }
+
+    .card:nth-child(2) {
+      border-top: 3px solid var(--teal)
+    }
+
+    .card:nth-child(1) {
+      border-top: 3px solid var(--violet)
+    }
+
+    .card:nth-child(3) {
+      border-top: 3px solid var(--blue)
+    }
+
+    .note {
+      border: 1px solid #f0d2ad;
+      background: var(--atint);
+      border-radius: 10px;
+      padding: 12px 18px;
+      margin: 18px 0
+    }
+
+    .note b {
+      color: var(--amber)
+    }
+
+    section {
+      padding-top: 44px;
+      border-top: 1px solid var(--line);
+      margin-top: 44px
+    }
+
+    h2 {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 1.75rem;
+      margin: 0 0 12px;
+      font-weight: 800
+    }
+
+    h2 em {
+      font: normal 600 .85rem ui-monospace, Menlo, monospace;
+      color: var(--violet);
+      background: #f1edff;
+      border: 1px solid #d9cffb;
+      border-radius: 6px;
+      padding: 4px 10px
+    }
+
+    h3 {
+      font-size: 1.06rem;
+      margin: 26px 0 6px
+    }
+
+    h3 span {
+      color: var(--violet);
+      margin-right: 6px
+    }
+
+    .where {
+      font: 600 .76rem "Segoe UI", sans-serif;
+      border-radius: 99px;
+      padding: 1px 10px;
+      margin-left: 8px;
+      vertical-align: middle;
+      color: #fff
+    }
+
+    .pc {
+      background: var(--blue)
+    }
+
+    .bd {
+      background: var(--teal)
+    }
+
+    .ct {
+      background: var(--violet)
+    }
+
+    p {
+      margin: 8px 0
+    }
+
+    pre {
+      background: #f4f7fc;
+      border: 1px solid #dfe6f3;
+      border-left: 4px solid var(--blue);
+      border-radius: 6px;
+      padding: 11px 14px;
+      overflow-x: auto;
+      margin: 8px 0;
+      font: .86rem/1.55 ui-monospace, Menlo, Consolas, monospace
+    }
+
+    pre.out {
+      background: var(--gtint);
+      border: 1px dashed var(--green);
+      color: #0b5c42;
+      padding-top: 26px;
+      position: relative
+    }
+
+    pre.out:before {
+      content: "Expected output";
+      position: absolute;
+      top: 5px;
+      left: 14px;
+      font: 700 .74rem "Segoe UI", sans-serif;
+      color: var(--green)
+    }
+
+    code {
+      font: .88em ui-monospace, Menlo, Consolas, monospace;
+      background: #eef1f6;
+      padding: 1px 5px;
+      border-radius: 4px
+    }
+
+    pre code {
+      background: none;
+      padding: 0
+    }
+
+    .ex {
+      background: #fbfcff;
+      border: 1px solid var(--line);
+      border-left: 4px solid var(--teal);
+      border-radius: 6px;
+      padding: 8px 14px;
+      margin: 6px 0 12px;
+      font-size: .93rem
+    }
+
+    .ex p {
+      margin: 2px 0 4px
+    }
+
+    .ex b {
+      color: var(--teal)
+    }
+
+    .ex ul {
+      margin: 2px 0 4px;
+      padding-left: 20px
+    }
+
+    .tip,
+    .warn {
+      border-radius: 6px;
+      padding: 9px 14px;
+      margin: 10px 0;
+      font-size: .93rem
+    }
+
+    .tip {
+      background: var(--tint);
+      border: 1px solid var(--line);
+      border-left: 5px solid var(--blue)
+    }
+
+    .tip b {
+      color: var(--blue)
+    }
+
+    .warn {
+      background: var(--atint);
+      border: 1px solid #f0d2ad;
+      border-left: 5px solid var(--amber)
+    }
+
+    .warn b {
+      color: var(--amber)
+    }
+
+    .tw {
+      overflow-x: auto
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      font-size: .92rem;
+      min-width: 520px
+    }
+
+    th,
+    td {
+      border: 1px solid var(--line);
+      padding: 8px 10px;
+      text-align: left;
+      vertical-align: top
+    }
+
+    th {
+      background: var(--tint);
+      color: var(--blue2)
+    }
+
+    a {
+      color: var(--blue)
+    }
+
+    footer {
+      margin-top: 50px;
+      color: var(--mute);
+      font-size: .88rem;
+      border-top: 1px solid var(--line);
+      padding-top: 14px
+    }
+
+
+    .code {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #f8fbff;
+      margin: 10px 0 6px;
+      overflow: hidden
+    }
+
+    .bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 7px 14px;
+      border-bottom: 1px solid var(--line);
+      background: #f8fbff
+    }
+
+    .lang {
+      font: 700 .74rem ui-monospace, Menlo, monospace;
+      letter-spacing: .06em;
+      color: var(--mute)
+    }
+
+    .lang:before {
+      content: "";
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background: #22a06b;
+      border-radius: 50%;
+      margin-right: 8px
+    }
+
+    .copy {
+      font: 600 .76rem ui-monospace, Menlo, monospace;
+      color: var(--blue2);
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 3px 12px;
+      cursor: pointer
+    }
+
+    .copy:hover,
+    .copy:focus-visible {
+      background: var(--tint);
+      border-color: var(--blue)
+    }
+
+    .code pre {
+      margin: 0;
+      border: 0;
+      border-radius: 0;
+      background: #fff;
+      padding: 14px 18px
+    }
+
+    h3 {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #e9f7fa;
+      border: 1px solid #bfe3ea;
+      color: #0b6f83;
+      border-radius: 8px;
+      padding: 4px 14px 4px 5px;
+      font-size: .98rem;
+      margin: 26px 0 8px
+    }
+
+    h3 span {
+      background: var(--teal);
+      color: #fff;
+      border-radius: 5px;
+      padding: 0 8px;
+      margin: 0;
+      font: 700 .8rem ui-monospace, Menlo, monospace
+    }
+
+    .tip {
+      background: var(--gtint);
+      border: 1px solid #bfe8d5;
+      border-left: 5px solid var(--green)
+    }
+
+    .tip b {
+      color: var(--green)
+    }
+
+    .tip:before {
+      content: "\1F4A1  "
+    }
+
+    .warn:before {
+      content: "\26A0\FE0F  "
+    }
+
+    .ex {
+      border: 0;
+      border-left: 0;
+      background: transparent;
+      padding: 2px 4px 2px 6px;
+      margin: 4px 0 14px
+    }
+
+    .ex:before {
+      content: "In simple words";
+      display: block;
+      font: 700 .76rem "Segoe UI", sans-serif;
+      color: var(--teal);
+      margin-bottom: 2px
+    }
+
+    pre.out {
+      margin: 8px 0
+    }
+
+    .menu,
+    .scrim {
+      display: none
+    }
+
+    aside a.active {
+      background: var(--tint);
+      color: var(--blue);
+      border-left-color: var(--blue);
+      font-weight: 600
+    }
+
+    .good {
+      background: var(--gtint);
+      border: 1px solid #bfe8d5;
+      border-radius: 10px;
+      padding: 12px 18px;
+      margin: 14px 0;
+      color: #0b5c42
+    }
+
+    .good:before {
+      content: "\2705  "
+    }
+
+    .good b {
+      color: var(--green)
+    }
+
+    .info {
+      background: var(--tint);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 12px 18px;
+      margin: 14px 0
+    }
+
+    .info:before {
+      content: "\1F4D6  "
+    }
+
+    .wait {
+      background: #f1edff;
+      border: 1px solid #d9cffb;
+      border-radius: 10px;
+      padding: 10px 16px;
+      margin: 10px 0;
+      color: #4a2fb0
+    }
+
+    .wait:before {
+      content: "\23F3  "
+    }
+
+    @media(max-width:1100px) {
+      main {
+        padding: 40px 28px 60px
+      }
+
+      aside {
+        width: 240px
+      }
+
+      main {
+        margin-left: 240px
+      }
+    }
+
+    @media(max-width:900px) {
+      html {
+        scroll-padding-top: calc(env(safe-area-inset-top, 0px) + 64px)
+      }
+
+      .menu {
+        display: flex;
+        align-items: center;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 30;
+        height: calc(52px + env(safe-area-inset-top, 0px));
+        padding: env(safe-area-inset-top, 0px) 16px 0;
+        background: #fff;
+        border: 0;
+        border-bottom: 1px solid var(--line);
+        font: 700 .95rem "Segoe UI", system-ui, sans-serif;
+        color: var(--blue);
+        cursor: pointer;
+        text-align: left
+      }
+
+      aside {
+        position: fixed;
+        inset: 0 auto 0 0;
+        width: min(84vw, 300px);
+        z-index: 40;
+        transform: translateX(-102%);
+        transition: transform .25s ease;
+        box-shadow: 6px 0 24px rgba(10, 40, 100, .18);
+        padding-top: calc(26px + env(safe-area-inset-top, 0px))
+      }
+
+      aside.open {
+        transform: none
+      }
+
+      .scrim.open {
+        display: block;
+        position: fixed;
+        inset: 0;
+        z-index: 35;
+        background: rgba(10, 30, 70, .35)
+      }
+
+      main {
+        margin: 0;
+        padding: calc(76px + env(safe-area-inset-top, 0px)) 18px 50px
+      }
+
+      h2 {
+        font-size: 1.4rem;
+        flex-wrap: wrap;
+        gap: 8px
+      }
+
+      .cards {
+        grid-template-columns: 1fr
+      }
+    }
+
+    @media(prefers-reduced-motion:reduce) {
+      aside {
+        transition: none
+      }
+
+      html {
+        scroll-behavior: auto
+      }
+    }
+
+    @media(prefers-reduced-motion:reduce) {
+      aside {
+        transition: none
+      }
+
+      html {
+        scroll-behavior: auto
+      }
+    }
+
+    .faq {
+      display: grid;
+      gap: 12px;
+      margin: 14px 0
+    }
+
+    .q {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 12px 16px;
+      background: #fff
+    }
+
+    .q p {
+      margin: 0
+    }
+
+    .tg {
+      display: inline-block;
+      font: 700 .75rem "Segoe UI", sans-serif;
+      border-radius: 4px;
+      padding: 0 7px;
+      margin-right: 6px;
+      vertical-align: 1px
+    }
+
+    .tg.net {
+      background: #fdeaea;
+      color: #c0392b
+    }
+
+    .tg.inf {
+      background: #e6f7ef;
+      color: #12805c
+    }
+
+    .tg.hw {
+      background: #fff1e0;
+      color: #b45309
+    }
+
+    .tg.set {
+      background: #e3f4f8;
+      color: #0b6f83
+    }
+
+    .tg.dk {
+      background: #f1edff;
+      color: #5b3fc4
+    }
+  </style>
+</head>
+
+<body>
+  <button class="menu" type="button" aria-label="Toggle navigation" aria-expanded="false" aria-controls="nav">&#9776;
+    Menu</button>
+  <div class="scrim"></div>
+  <aside id="nav">
+    <div class="brand"><small>WG Tech</small><strong>Metis Starter Kit</strong><span class="pill">Compute Board</span>
+    </div>
+    <a href="#hardware"><i>01</i>Hardware Requirements</a>
+    <a href="#flash"><i>02</i>Flash the OS</a>
+    <a href="#sdk"><i>03</i>First Boot &amp; Voyager SDK</a>
+    <a href="#compose"><i>04</i>Docker Compose</a>
+    <a href="#mtx"><i>05</i>MediaMTX</a>
+    <a href="#kit"><i>06</i>Starter Kit</a>
+    <a href="#fix"><i>07</i>Troubleshooting</a>
+    <a href="#reboot"><i>08</i>Power off and on</a>
+    <a href="#quickref"><i>09</i>Quick Reference</a>
+    <a href="#faq"><i>10</i>FAQ &amp; Troubleshooting</a>
+  </aside>
+  <main>
+    <div class="eyebrow">COMPUTE BOARD SETUP GUIDE</div>
+    <h1>WGtech AI <span>Starter Kit</span><br>Metis Compute Board</h1>
+    <p class="lead">Start the Voyager SDK container on the board, restore Docker Compose and MediaMTX, then launch the
+      Starter Kit dashboard. Every command is explained: what it does and why you need it. Follow the sections in order.
+    </p>
+    <div class="box"><b>What you will do</b>
+      <ul>
+        <li>Prepare the Ubuntu PC to talk to the board over USB</li>
+        <li>Start the Voyager SDK container and confirm the AIPU opens</li>
+        <li>Install Compose and MediaMTX, then launch the kit</li>
+      </ul>
+    </div>
+    <div class="box"><b>&#9201; Estimated Time</b>
+      <ul>
+        <li>Active setup time: 30&ndash;60 minutes</li>
+        <li>Total time (including downloads &amp; the first model compile): 2&ndash;4+ hours</li>
+      </ul>
+    </div>
+    <div class="cards">
+      <div class="card"><small>PRODUCT</small>
+        <p>AI Starter Kit</p>
+      </div>
+      <div class="card"><small>PLATFORM</small>
+        <p>Metis Compute Board (RK3588)</p>
+      </div>
+      <div class="card"><small>ACCELERATOR</small>
+        <p>Integrated Metis AIPU, 4 cores</p>
+      </div>
+    </div>
+    <div class="note"><b>Before you begin.</b> Follow the sections in order. Step 2 points you to Axelera's official
+      flashing documentation, and the rest assumes a correctly flashed Compose Board with Ethernet internet.</div>
+
+    <section id="hardware">
+      <h2><em>&sect; 01</em>Hardware Requirements</h2>
+      <p>The Metis Compute Board is a complete unit: the AIPU is on the board, so there is no card to seat and no PCIe
+        HAT to stack. You will need the following around it:</p>
+      <div class="tw">
+        <table>
+          <tr>
+            <th>COMPONENT</th>
+            <th>NOTES</th>
+          </tr>
+          <tr>
+            <td><code>Metis Compute Board</code></td>
+            <td><b>RK3588 SBC</b> with integrated Metis AIPU, supplied as one unit</td>
+          </tr>
+          <tr>
+            <td><code>Power supply</code></td>
+            <td>12V, 7A DC adapter with a 5.5 mm (outer) x 2.5 mm (inner) barrel connector. An underpowered supply
+              causes random crashes and AIPU instability</td>
+          </tr>
+          <tr>
+            <td><code>Storage</code></td>
+            <td>SD card or eMMC/NVMe as specified for your board. Class 10 / A2 or faster shortens boot and install
+              times</td>
+          </tr>
+          <tr>
+            <td><code>HDMI display + cable</code></td>
+            <td>Check the board's connector type before buying a cable</td>
+          </tr>
+          <tr>
+            <td><code>USB keyboard + mouse</code></td>
+            <td>For initial setup</td>
+          </tr>
+          <tr>
+            <td><code>Ethernet (preferred) or Wi-Fi</code></td>
+            <td>Ethernet is strongly preferred for reliability during large downloads</td>
+          </tr>
+          <tr>
+            <td><code>USB-C data cable + Ubuntu PC</code></td>
+            <td>Used for adb and for copying files to the board. Charge-only cables will not work</td>
+          </tr>
+          <tr>
+            <td><code>One or more RTSP IP cameras</code></td>
+            <td><b>On the same subnet as the board.</b> H.264 or H.265 supported. A USB webcam works too</td>
+          </tr>
+        </table>
+      </div>
+      <div class="good"><b>Integrated AIPU</b> The Metis Compute Board has the AIPU built in. There is no physical
+        accelerator installation: no card, no M.2 slot, no PCIe HAT to worry about.</div>
+      <h3><span>1.1</span>Where each command runs</h3>
+      <p>Every step is tagged with where to run it. Check your prompt first:</p>
+      <div class="tw">
+        <table>
+          <tr>
+            <th>Prompt</th>
+            <th>Where you are</th>
+            <th>What runs there</th>
+          </tr>
+          <tr>
+            <td><code>wg-tech@...-Notebook-PC</code></td>
+            <td><span class="where pc">PC</span></td>
+            <td>adb, downloads, <code>adb push</code></td>
+          </tr>
+          <tr>
+            <td><code>root@antelao-3588</code></td>
+            <td><span class="where bd">Board host</span></td>
+            <td>docker, docker compose, kit scripts</td>
+          </tr>
+          <tr>
+            <td><code>ubuntu@antelao-3588:~/voyager-sdk</code></td>
+            <td><span class="where ct">Container</span></td>
+            <td>axdevice, make (no docker here)</td>
+          </tr>
+        </table>
+      </div>
+      <div class="tip"><b>Tip:</b> "command not found" almost always means the wrong shell. Back up
+        <code>/home/antelao/shared</code> before changing anything, because it is the only folder that survives
+        container restarts.
+      </div>
+    </section>
+
+    <section id="flash">
+      <h2><em>&sect; 02</em>Flash the Operating System</h2>
+      <p>Flash the board's OS image following <b>Axelera's official documentation for your board revision</b>. Axelera's
+        guide is authoritative: the image, tool and procedure vary by board, so follow theirs rather than a generic one.
+      </p>
+      <div class="info">Start at <a href="https://docs.axelera.ai">docs.axelera.ai</a> and the <a
+          href="https://github.com/axelera-ai-hub/voyager-sdk">Voyager SDK repository</a>. Use the image and flashing
+        tool they specify for the Compose Board.</div>
+      <p>Once flashed, boot the board and confirm you are on the right platform:</p>
+      <div class="code">
+        <div class="bar"><span class="lang">BASH</span><button class="copy" type="button">Copy</button></div>
+        <pre>uname -m
+cat /proc/device-tree/model</pre>
+      </div>
+      <pre class="out">aarch64
+...RK3588...</pre>
+      <div class="ex">
+        <ul>
+          <li><code>uname -m</code> prints the CPU architecture. <code>aarch64</code> means ARM 64-bit, which is what
+            this board needs</li>
+          <li><code>cat /proc/device-tree/model</code> prints the board model name the system reports, which should
+            mention RK3588</li>
+        </ul>
+      </div>
+      <div class="warn">If <code>uname -m</code> does not report <code>aarch64</code>, or the model does not mention
+        <b>RK3588</b>, stop and recheck the image. The rest of this guide assumes a correctly flashed Compose Board.
+      </div>
+    </section>
+
+
+    <section id="sdk">
+      <h2><em>&sect; 03</em>First boot &amp; Voyager SDK container <span class="where bd">Board host</span></h2>
+      <p>Open a terminal on the board, check it is online, then start the Voyager SDK container.</p>
+      <div class="warn"><b>You are root on the board.</b> The prompt looks like <code>root@antelao-3588:~#</code> (note
+        the <code>#</code> and <code>root@</code>). Because you are already root, board commands in this guide are shown
+        without <code>sudo</code>. Run them exactly as written. Commands tagged <b>PC</b> run on your Ubuntu PC and may
+        use <code>sudo</code>.</div>
+      <h3><span>3.1</span>Install and start adb</h3>
+      <div class="code">
+        <div class="bar"><span class="lang">BASH</span><button class="copy" type="button">Copy</button></div>
+        <pre>sudo apt update
+sudo apt install adb
+adb kill-server
+adb start-server</pre>
+      </div>
+      <pre class="out">* daemon not running; starting now at tcp:5037
+* daemon started successfully</pre>
+      <div class="ex">
+        <ul>
+          <li><code>apt update</code> refreshes the package list. On a fresh install, skipping it makes adb "not found"
+          </li>
+          <li><code>apt install adb</code> installs the Android Debug Bridge, the tool that opens a shell on the board
+            over USB and copies files</li>
+          <li><code>adb kill-server</code> stops any stuck adb background process</li>
+          <li><code>adb start-server</code> starts a clean one on port 5037</li>
+        </ul>
+      </div>
+
+      <div class="tip"><b>Tip:</b> Empty list? Use a data-capable cable, replug it, and repeat
+        <code>adb kill-server</code> and <code>adb start-server</code>.
+      </div>
+      <h3><span>3.1 a</span>Check the board is detected</h3>
+      <div class="code">
+        <div class="bar"><span class="lang">BASH</span><button class="copy" type="button">Copy</button></div>
+        <pre>adb devices -l</pre>
+      </div>
+      <pre class="out">List of devices attached
+0123456789ABCDEF       device usb:2-5 transport_id:4</pre>
+      <div class="ex">
+        <p><b>Why:</b> Lists connected devices (<code>-l</code> adds details). Note your <code>usb:X-Y</code> value,
+          which identifies the board when you have several devices.</p>
+      </div>
+      <h3><span>3.1 b</span>Open a terminal on the board</h3>
+      <p>Use any one of these. The on-screen terminal needs the HDMI display and keyboard from section 1: after boot,
+        click the shell icon in the top-left corner. Over USB-C use adb (it must be installed on your PC):</p>
+      <div class="code">
+        <div class="bar"><span class="lang">BASH</span><button class="copy" type="button">Copy</button></div>
+        <pre>adb -s usb:2-5 shell</pre>
+      </div>
+      <!-- <div class="ex">
+        <p>Opens a terminal on the board through the USB cable. <code>-s usb:2-5</code> picks your board by the ID that
+          <code>adb devices -l</code> shows.</p>
+      </div> -->
+      <p>If adb is not installed on your PC yet, set it up first (run these on your <b>PC</b>, not the board):</p>
+
+
+      <!-- <p>Or over the network, using the IP from step 3.2:</p>
+      <div class="code">
+        <div class="bar"><span class="lang">BASH</span><button class="copy" type="button">Copy</button></div>
+        <pre>ssh antelao@&lt;board-ip&gt;</pre>
+      </div>
+      <div class="ex">
+        <p><code>ssh</code> logs in remotely as the user <code>antelao</code> at the board's IP address. Change the
+          default passwords with <code>passwd</code> on first login (defaults are in Axelera's user guide).</p>
+      </div> -->
+      <h3><span>3.2</span>Connect to the network and check the internet</h3>
+      <p>Ethernet is plug-and-play. Confirm you are online and note the board's IP, which you will use to reach the
+        dashboard from your laptop later:</p>
+      <div class="code">
+        <div class="bar"><span class="lang">BASH</span><button class="copy" type="button">Copy</button></div>
+        <pre>ping -c 3 8.8.8.8
+hostname -I</pre>
+      </div>
+      <pre class="out">3 packets transmitted, 3 received, 0% packet loss
+192.168.1.50      (your IP will differ)</pre>
+      <div class="ex">
+        <ul>
+          <li><code>ping -c 3 8.8.8.8</code> sends 3 test messages (<code>-c 3</code>) to 8.8.8.8, a public Google
+            server. Replies mean the board has internet</li>
+          <li><code>hostname -I</code> prints the board's IP address</li>
+        </ul>
+        <p>"Network is unreachable" or 100% packet loss means check the Ethernet cable and router.</p>
+      </div>
+      <div class="tip"><b>Tip:</b> Write down the IP from <code>hostname -I</code> (the first address). You will open
+        <code>http://&lt;that-ip&gt;</code> from another machine on the same network once the dashboard is running.
+      </div>
+      <div class="info"><b>Now switch to the board.</b> Connect the Rockchip board to a monitor with the HDMI cable,
+        open the terminal on the board (click the shell icon in the top-left corner), and continue the process from here
+        in the Rockchip terminal. Its prompt should look like <code>root@antelao-3588:~#</code>.</div>
+      <h3><span>3.3</span>Check versions and Docker</h3>
+      <div class="code">
+        <div class="bar"><span class="lang">BASH</span><button class="copy" type="button">Copy</button></div>
+        <pre>cat /etc/os-release
+cat /sys/class/metis/version
+docker --version
+docker ps -a
+docker images</pre>
+      </div>
+      <div class="ex">
+        <ul>
+          <li><code>cat</code> prints a file. The first shows the OS (BSP) version, the second the Metis driver version,
+            which must match your SDK (this setup used driver 1.4.16 with SDK 1.6.0)</li>
+          <li><code>docker --version</code> confirms Docker is installed</li>
+          <li><code>docker ps -a</code> lists all containers, including stopped ones. <code>Exited</code> is normal</li>
+          <li><code>docker images</code> lists downloaded images</li>
+        </ul>
+        <p>You want <b>one</b> Voyager container and one image.</p>
+      </div>
+      <h3><span>3.4</span>Download the SDK image (about 6 GB)</h3>
+      <div class="code">
+        <div class="bar"><span class="lang">BASH</span><button class="copy" type="button">Copy</button></div>
+        <pre>cd /home/antelao
+./setup_axelera_environment.sh 1.6.0</pre>
+      </div>
+      <div class="ex">
+        <p><code>cd</code> moves into the folder holding the scripts. The script downloads the SDK Docker image for
+          version 1.6.0. Skip it if <code>docker images</code> already lists
+          <code>axelera-sdk-ubuntu-2204-arm64:1.6.0</code>.
+        </p>
+      </div>
+      <div class="wait">This can take a while on first run depending on how old the image is. Use Ethernet if you can.
+      </div>
+      <h3><span>3.5</span>Start the container</h3>
+      <div class="code">
+        <div class="bar"><span class="lang">BASH</span><button class="copy" type="button">Copy</button></div>
+        <pre>python3 start_axelera.py start --container-name "Voyager-SDK" --version "1.6.0"</pre>
+      </div>
+      <pre class="out">[INFO] Initializing Voyager SDK container 'Voyager-SDK' (Version 1.6.0)
+[INFO] Existing container 'Voyager-SDK' detected.
+ubuntu@antelao-3588:~/voyager-sdk$</pre>
+      <div class="ex">
+        <p>The helper script creates the container, or restarts it if it exists, and opens a shell inside it.
+          <code>--container-name</code> names it and <code>--version</code> picks the SDK image. A prompt starting with
+          <code>ubuntu@</code> means you are now inside.
+        </p>
+      </div>
+      <h3><span>3.6</span>First-time build (inside the container)</h3>
+      <div class="code">
+        <div class="bar"><span class="lang">BASH</span><button class="copy" type="button">Copy</button></div>
+        <pre>make clobber-libs &amp;&amp; make operators</pre>
+      </div>
+      <div class="ex">
+        <p><code>make clobber-libs</code> clears old libraries and <code>make operators</code> builds the AI operators.
+          <code>&amp;&amp;</code> runs the second only if the first succeeds. It needs internet, takes several minutes
+          and must not be interrupted. Skip it if <code>axdevice</code> already works.
+        </p>
+      </div>
+      <h3><span>3.7</span>Test that the AIPU opens (inside the container)</h3>
+      <div class="code">
+        <div class="bar"><span class="lang">BASH</span><button class="copy" type="button">Copy</button></div>
+        <pre>cd ~/voyager-sdk
+source venv/bin/activate
+axdevice</pre>
+      </div>
+      <pre
+        class="out">Device 0: metis-0:1:0 4GiB metis-compute-board flver=1.5.0 bcver=7.1 clock=800MHz(0-3:800MHz) mvm=0-3:100%</pre>
+      <div class="ex">
+        <ul>
+          <li><code>source venv/bin/activate</code> turns on the SDK's Python environment. The prompt gains
+            <code>(venv)</code>
+          </li>
+          <li><code>axdevice</code> lists Metis accelerators. Seeing Device 0 proves the driver and SDK work together
+          </li>
+        </ul>
+      </div>
+      <div class="warn"><b>"Failed to open device"?</b> The driver and SDK versions likely differ. Compare the host's
+        <code>cat /sys/class/metis/version</code> with the SDK version.
+      </div>
+      <div class="tip"><b>Tip:</b> <code>exit</code> leaves the container and stops it. Restart it later with
+        <code>docker start Voyager-SDK</code> from the host.
+      </div>
+    </section>
+
+    <section id="compose">
+      <h2><em>&sect; 04</em>Docker Compose <span class="where bd">Board host</span></h2>
+      <p>The kit launches several services together with Compose, and it is not on the board by default.</p>
+      <div class="code">
+        <div class="bar"><span class="lang">BASH</span><button class="copy" type="button">Copy</button></div>
+        <pre>mkdir -p ~/.docker/cli-plugins
+curl -SL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-aarch64 -o ~/.docker/cli-plugins/docker-compose
+chmod +x ~/.docker/cli-plugins/docker-compose
+docker compose version</pre>
+      </div>
+      <pre class="out">Docker Compose version v5.5.1</pre>
+      <div class="ex">
+        <ul>
+          <li><code>mkdir -p</code> creates the plugin folder (<code>-p</code> means no error if it exists and creates
+            parents)</li>
+          <li><code>curl -SL ... -o file</code> downloads: <code>-S</code> shows errors, <code>-L</code> follows
+            redirects, <code>-o</code> sets the output file. The <code>aarch64</code> file is the ARM 64-bit build the
+            board needs</li>
+          <li><code>chmod +x</code> marks it executable</li>
+          <li><code>docker compose version</code> proves Docker finds the plugin</li>
+        </ul>
+      </div>
+      <div class="tip"><b>Tip:</b> <code>~</code> is <code>/root</code> for root, so run the kit as the same user. Any
+        version number is fine if one prints.</div>
+    </section>
+
+    <section id="mtx">
+      <h2><em>&sect; 05</em>MediaMTX</h2>
+      <p>MediaMTX relays USB and video-file sources to the dashboard. RTSP cameras are read directly and work without
+        it.</p>
+      <h3><span>5.1</span>Download and unpack <span class="where pc">PC</span></h3>
+      <div class="code">
+        <div class="bar"><span class="lang">BASH</span><button class="copy" type="button">Copy</button></div>
+        <pre>mkdir -p ~/mtx &amp;&amp; cd ~/mtx
+curl -fSL https://github.com/bluenviron/mediamtx/releases/download/v1.21.1/mediamtx_v1.21.1_linux_arm64.tar.gz -o mediamtx.tar.gz
+file mediamtx.tar.gz
+tar -xzf mediamtx.tar.gz
+ls</pre>
+      </div>
+      <pre class="out">mediamtx.tar.gz: gzip compressed data
+LICENSE  mediamtx  mediamtx.tar.gz  mediamtx.yml</pre>
+      <div class="ex">
+        <ul>
+          <li><code>mkdir -p ~/mtx &amp;&amp; cd ~/mtx</code> makes a work folder and enters it</li>
+          <li><code>curl -fSL</code> adds <code>-f</code>, so a wrong URL fails instead of saving an error page</li>
+          <li><code>file</code> reports the real file type, and it must say gzip</li>
+          <li><code>tar -xzf</code> extracts (<code>x</code>) a gzip (<code>z</code>) archive from a file
+            (<code>f</code>)</li>
+          <li><code>ls</code> lists the result: the <code>mediamtx</code> program and its <code>mediamtx.yml</code>
+            config</li>
+        </ul>
+      </div>
+      <div class="warn"><b>Pick the right file:</b> use <code>linux_arm64</code>, not <code>armv6</code>,
+        <code>armv7</code> or <code>amd64</code>. "Not in gzip format" means you saved an error page.
+      </div>
+      <h3><span>5.2</span>Check the config <span class="where pc">PC</span></h3>
+      <div class="code">
+        <div class="bar"><span class="lang">BASH</span><button class="copy" type="button">Copy</button></div>
+        <pre>grep -n -A2 "^paths:" mediamtx.yml</pre>
+      </div>
+      <div class="ex">
+        <p><b>Why:</b> <code>grep</code> searches text. <code>-n</code> shows line numbers, <code>-A2</code> shows 2
+          lines after, and <code>"^paths:"</code> matches that word at line start. You should see
+          <code>all_others:</code> below it, the setting that made streaming work here.
+        </p>
+      </div>
+      <h3><span>5.3</span>Send to the board <span class="where pc">PC</span></h3>
+      <div class="code">
+        <div class="bar"><span class="lang">BASH</span><button class="copy" type="button">Copy</button></div>
+        <pre>adb shell mkdir -p /home/root/mediamtx
+adb push mediamtx /home/root/mediamtx/mediamtx
+adb push mediamtx.yml /home/root/mediamtx/mediamtx.yml</pre>
+      </div>
+      <div class="ex">
+        <p><b>Why:</b> <code>adb shell mkdir</code> creates a folder on the board.
+          <code>adb push source destination</code> copies a file from the PC to the board over USB.
+        </p>
+      </div>
+      <h3><span>5.4</span>Check on the board <span class="where bd">Board host</span></h3>
+      <div class="code">
+        <div class="bar"><span class="lang">BASH</span><button class="copy" type="button">Copy</button></div>
+        <pre>chmod +x ~/mediamtx/mediamtx
+file ~/mediamtx/mediamtx
+~/mediamtx/mediamtx --version</pre>
+      </div>
+      <pre class="out">/root/mediamtx/mediamtx: ELF 64-bit LSB executable, ARM aarch64 ...
+v1.21.1</pre>
+      <div class="ex">
+        <p><b>Why:</b> The copied file loses its executable flag, so <code>chmod +x</code> restores it.
+          <code>file</code> must say ARM aarch64, and <code>--version</code> proves it runs. "Exec format error" means
+          the wrong architecture.
+        </p>
+      </div>
+    </section>
+
+    <section id="kit">
+      <h2><em>&sect; 06</em>Starter Kit <span class="where bd">Board host</span></h2>
+      <h3><span>6.1</span>Download the kit</h3>
+      <div class="code">
+        <div class="bar"><span class="lang">BASH</span><button class="copy" type="button">Copy</button></div>
+        <pre>cd ~
+curl -fsSL https://github.com/WG-Tech-Solutions/Starter-Kit-Advanced/archive/refs/heads/main.tar.gz -o kit.tar.gz
+tar -xzf kit.tar.gz
+cd ~/Starter-Kit-Advanced-main
+chmod +x *.sh
+ls</pre>
+      </div>
+      <div class="ex">
+        <ul>
+          <li><code>cd ~</code> goes to your home folder</li>
+          <li><code>curl -fsSL</code> is a quiet download (<code>-s</code>) that still shows errors and follows
+            redirects</li>
+          <li><code>tar -xzf</code> unpacks it into <code>Starter-Kit-Advanced-main</code></li>
+          <li><code>chmod +x *.sh</code> makes every script (<code>*.sh</code>) executable</li>
+        </ul>
+      </div>
+      <h3><span>6.2</span>Point MediaMTX at your config</h3>
+      <div class="code">
+        <div class="bar"><span class="lang">BASH</span><button class="copy" type="button">Copy</button></div>
+        <pre>sed -i "s#/etc/mediamtx.yml#$HOME/mediamtx/mediamtx.yml#" start_voyager.sh
+grep -n "nohup mediamtx" start_voyager.sh</pre>
+      </div>
+      <pre class="out">nohup mediamtx /root/mediamtx/mediamtx.yml &gt; /tmp/mediamtx.log 2&gt;&amp;1 &amp;</pre>
+      <div class="ex">
+        <p><b>Why:</b> The script looks for its config in <code>/etc</code>, which is read-only on this board.
+          <code>sed</code> edits text: <code>-i</code> changes the file in place and <code>s#old#new#</code> replaces
+          the old path with your home copy. The <code>grep</code> confirms the change.
+        </p>
+      </div>
+      <h3><span>6.3</span>Make sure the container is running</h3>
+      <div class="code">
+        <div class="bar"><span class="lang">BASH</span><button class="copy" type="button">Copy</button></div>
+        <pre>docker start Voyager-SDK
+docker ps | grep -i voyager
+docker exec Voyager-SDK bash -lc 'ls -d /home/ubuntu/voyager-sdk'</pre>
+      </div>
+      <pre class="out">/home/ubuntu/voyager-sdk</pre>
+      <div class="ex">
+        <ul>
+          <li><code>docker start</code> starts the stopped container. The kit cannot use a stopped one</li>
+          <li><code>docker ps | grep -i voyager</code> shows only running containers, filtered (<code>|</code> pipes
+            output to <code>grep</code>, <code>-i</code> ignores case)</li>
+          <li><code>docker exec</code> runs one command inside the container, here checking the SDK folder exists</li>
+        </ul>
+      </div>
+      <h3><span>6.4</span>Launch, in one terminal window</h3>
+      <div class="code">
+        <div class="bar"><span class="lang">BASH</span><button class="copy" type="button">Copy</button></div>
+        <pre>cd ~/Starter-Kit-Advanced-main
+export PATH=$HOME/mediamtx:$PATH
+export CONTAINER=Voyager-SDK
+export VOYAGER_SDK_VERSION=1.6.0
+command -v mediamtx
+./start.sh</pre>
+      </div>
+      <pre class="out">Setup complete
+  Voyager container : Voyager-SDK
+  SDK path          : /home/ubuntu/voyager-sdk
+  Metis driver      : 1.4.16
+  AIPU cores        : 4</pre>
+      <div class="ex">
+        <ul>
+          <li><code>export PATH=...</code> lets the shell find <code>mediamtx</code> by name</li>
+          <li><code>export CONTAINER=Voyager-SDK</code> is essential. The script defaults to lowercase
+            <code>voyager-sdk</code> and Docker names are case-sensitive, so without it a second container is created
+          </li>
+          <li><code>export VOYAGER_SDK_VERSION</code> tells the kit which SDK version to use</li>
+          <li><code>command -v mediamtx</code> prints where the shell found it, proving the PATH works</li>
+          <li><code>./start.sh</code> runs five steps: environment setup, image download, MediaMTX and inference server,
+            dashboard, health check</li>
+        </ul>
+      </div>
+      <div class="warn"><b>Do not press Ctrl+C</b> during the image download. The exports last only in this terminal
+        window, so use the same one. If step 3 says "mediamtx not found on PATH", re-run the PATH export and
+        <code>./start.sh</code>, which is safe to repeat.
+      </div>
+      <h3><span>6.5</span>Verify</h3>
+      <div class="code">
+        <div class="bar"><span class="lang">BASH</span><button class="copy" type="button">Copy</button></div>
+        <pre>docker ps -a
+tail -f /tmp/mediamtx.log
+docker exec Voyager-SDK tail -f /tmp/ai_server.log</pre>
+      </div>
+      <div class="ex">
+        <p><b>Why:</b> <code>docker ps -a</code> should still show <b>one</b> Voyager container (Compose adds its own
+          dashboard containers, which is normal). <code>tail -f</code> follows a log file live, and Ctrl+C stops it.
+          MediaMTX serves RTSP on port 8554 and HLS on 8888. Then open the dashboard and use <b>Add Model</b> for your
+          camera.</p>
+      </div>
+    </section>
+
+    <section id="fix">
+      <h2><em>&sect; 07</em>Troubleshooting</h2>
+      <div class="tw">
+        <table>
+          <tr>
+            <th>Symptom</th>
+            <th>Cause and fix</th>
+          </tr>
+          <tr>
+            <td><code>docker: command not found</code></td>
+            <td>Wrong shell (PC, bare <code>sh-5.1#</code> or inside the container). Use the board host as root.</td>
+          </tr>
+          <tr>
+            <td>Container "is not running"</td>
+            <td>Run <code>docker start Voyager-SDK</code>.</td>
+          </tr>
+          <tr>
+            <td><code>axdevice: command not found</code></td>
+            <td>Not in the container or venv. Run <code>source venv/bin/activate</code> in <code>~/voyager-sdk</code>.
+            </td>
+          </tr>
+          <tr>
+            <td>Failed to open device metis</td>
+            <td>Driver and SDK versions differ. Compare <code>/sys/class/metis/version</code> with the SDK.</td>
+          </tr>
+          <tr>
+            <td><code>not in gzip format</code></td>
+            <td>The download was an error page. Use <code>curl -fSL</code> and check with <code>file</code>.</td>
+          </tr>
+          <tr>
+            <td><code>Exec format error</code></td>
+            <td>Wrong architecture. Use arm64 builds only.</td>
+          </tr>
+          <tr>
+            <td>Second Voyager container</td>
+            <td><code>CONTAINER</code> was not set. Set it, remove the extra container and rerun.</td>
+          </tr>
+          <tr>
+            <td><code>adb devices -l</code> empty</td>
+            <td>Use a data cable, replug, then restart the adb server.</td>
+          </tr>
+        </table>
+      </div>
+      <p>More help: <a href="https://community.axelera.ai/">community.axelera.ai</a> and <a
+          href="https://docs.axelera.ai">docs.axelera.ai</a>.</p>
+    </section>
+    <section id="reboot">
+      <h2><em>&sect; 08</em>Power off and power on <span class="where bd">Board host</span></h2>
+      <p>After a reboot the container is stopped and your <code>export</code> settings are gone, so the kit needs
+        restarting the same way each time.</p>
+      <h3><span>8.1</span>Shut down safely</h3>
+      <div class="code">
+        <div class="bar"><span class="lang">BASH</span><button class="copy" type="button">Copy</button></div>
+        <pre>exit                      # only if you are inside the container
+docker stop Voyager-SDK
+poweroff</pre>
+      </div>
+      <div class="ex">
+        <ul>
+          <li><code>exit</code> leaves the container and returns you to the board host (prompt
+            <code>root@antelao-3588</code>)
+          </li>
+          <li><code>docker stop Voyager-SDK</code> stops the container cleanly so nothing is cut off mid-write</li>
+          <li><code>poweroff</code> shuts the board down. If it is not available, use <code>shutdown -h now</code></li>
+        </ul>
+        <p>Wait until the board is fully off before unplugging the power cable.</p>
+      </div>
+      <h3><span>8.2</span>Power on and open a shell</h3>
+      <p>Connect the DC power cable. The board boots by itself. Wait a minute or two, then on the PC:</p>
+      <div class="code">
+        <div class="bar"><span class="lang">BASH</span><button class="copy" type="button">Copy</button></div>
+        <pre>adb devices -l
+adb -s usb:2-5 shell</pre>
+      </div>
+      <div class="ex">
+        <p>The first command checks the PC sees the board again. The second opens a shell on it. Use your own
+          <code>usb:X-Y</code> value, or <code>ssh antelao@&lt;board-ip&gt;</code> instead. The prompt must read
+          <code>root@antelao-3588</code>.
+        </p>
+      </div>
+      <h3><span>8.3</span>Start the container</h3>
+      <div class="code">
+        <div class="bar"><span class="lang">BASH</span><button class="copy" type="button">Copy</button></div>
+        <pre>docker start Voyager-SDK
+docker ps | grep -i voyager</pre>
+      </div>
+      <pre class="out">417fdc522ae6   axelera-sdk-ubuntu-2204-arm64:1.6.0   ...   Up 5 seconds   Voyager-SDK</pre>
+      <div class="ex">
+        <p><code>docker start</code> brings the stopped container back. The second command shows only running
+          containers, so seeing <code>Voyager-SDK</code> with <code>Up</code> means it works.</p>
+      </div>
+      <h3><span>8.4</span>Set the variables and launch the kit</h3>
+      <div class="code">
+        <div class="bar"><span class="lang">BASH</span><button class="copy" type="button">Copy</button></div>
+        <pre>cd ~/Starter-Kit-Advanced-main
+export PATH=$HOME/mediamtx:$PATH
+export CONTAINER=Voyager-SDK
+export VOYAGER_SDK_VERSION=1.6.0
+command -v mediamtx
+./start.sh</pre>
+      </div>
+      <pre class="out">/root/mediamtx/mediamtx</pre>
+      <div class="ex">
+        <p>These <code>export</code> lines only last in the current terminal window, so a reboot erases them. Without
+          <code>CONTAINER</code> the kit looks for a lowercase <code>voyager-sdk</code>, and without
+          <code>VOYAGER_SDK_VERSION</code> it stops with an error. <code>command -v mediamtx</code> proves the shell can
+          find MediaMTX before you launch.
+        </p>
+      </div>
+      <!-- <h3><span>8.5</span>Optional: save the variables</h3>
+      <div class="code">
+        <div class="bar"><span class="lang">BASH</span><button class="copy" type="button">Copy</button></div>
+        <pre>cat > ~/kit-env.sh <<'EOF'
+export PATH=$HOME/mediamtx:$PATH
+export CONTAINER=Voyager-SDK
+export VOYAGER_SDK_VERSION=1.6.0
+EOF</pre>
+      </div> -->
+      <!-- <div class="ex">
+        <p>This writes the three lines into a file called <code>kit-env.sh</code> so you never retype them.
+          (<code>cat &gt; file &lt;&lt;'EOF'</code> saves everything up to the <code>EOF</code> line into the file.)</p>
+      </div> -->
+      <p>After any reboot, the whole restart is then just:</p>
+      <div class="code">
+        <div class="bar"><span class="lang">BASH</span><button class="copy" type="button">Copy</button></div>
+        <pre>docker start Voyager-SDK
+source ~/kit-env.sh
+cd ~/Starter-Kit-Advanced-main &amp;&amp; ./start.sh</pre>
+      </div>
+      <div class="ex">
+        <p><code>source</code> loads the saved lines into your current terminal. <code>&amp;&amp;</code> runs the kit
+          only if <code>cd</code> succeeded.</p>
+      </div>
+      <div class="tip"><b>Tip:</b> Afterwards <code>docker ps -a</code> should still show <b>one</b> Voyager container.
+        If you see <code>voyager-sdk</code> in lowercase, the variables were not set. Set them, remove the extra
+        container and rerun.</div>
+      <section id="quickref">
+        <h2><em>&sect; 09</em>Quick Reference</h2>
+        <h3><span>9.1</span>Every boot</h3>
+        <div class="code">
+          <div class="bar"><span class="lang">BASH</span><button class="copy" type="button">Copy</button></div>
+          <pre>modprobe metis
+cd ~/Starter-Kit-Advanced-main
+./start.sh</pre>
+        </div>
+        <div class="ex">
+          <ul>
+            <li><code>modprobe metis</code> loads the Metis driver into the system. It makes sure the AIPU is available
+              after a boot</li>
+            <li><code>cd ~/Starter-Kit-Advanced-main</code> goes into the kit folder</li>
+            <li><code>./start.sh</code> starts everything (MediaMTX, inference server, dashboard)</li>
+          </ul>
+        </div>
+        <div class="tip"><b>Tip:</b> After a full power-off, start the container and set the variables first, as shown
+          in
+          section 8.</div>
+        <h3><span>9.2</span>Useful commands</h3>
+        <div class="code">
+          <div class="bar"><span class="lang">BASH</span><button class="copy" type="button">Copy</button></div>
+          <pre># dashboard logs
+docker compose logs -f backend
+
+# inference logs
+docker exec Voyager-SDK tail -f /tmp/ai_server.log
+
+# what is running on the AIPU
+docker exec Voyager-SDK curl -s http://localhost:8001/inference/status
+
+# is the backend alive
+curl -s http://localhost/api/health
+
+# restart everything
+./stop.sh &amp;&amp; ./start.sh</pre>
+        </div>
+        <div class="ex">
+          <ul>
+            <li><code>docker compose logs -f backend</code> shows the dashboard backend's log live (<code>-f</code>
+              keeps
+              following). Run it inside the kit folder</li>
+            <li><code>docker exec Voyager-SDK tail -f /tmp/ai_server.log</code> follows the inference server's log
+              inside
+              the container</li>
+            <li><code>curl -s http://localhost:8001/inference/status</code> asks the inference server (port 8001) what
+              it
+              is running. <code>-s</code> keeps curl quiet. It runs through <code>docker exec</code> so
+              <code>localhost</code> means the container
+            </li>
+            <li><code>curl -s http://localhost/api/health</code> checks that the dashboard backend answers</li>
+            <li><code>./stop.sh &amp;&amp; ./start.sh</code> stops everything, then starts it again only if the stop
+              worked</li>
+          </ul>
+          <p>Press Ctrl+C to leave a live log.</p>
+        </div>
+        <h3><span>9.3</span>Golden diagnostic</h3>
+        <p>This exercises the board with none of the kit's code in the way:</p>
+        <div class="code">
+          <div class="bar"><span class="lang">BASH</span><button class="copy" type="button">Copy</button></div>
+          <pre>docker exec Voyager-SDK bash -lc \
+  'cd /home/ubuntu/voyager-sdk &amp;&amp; source venv/bin/activate &amp;&amp; \
+   ./inference.py yolov8n-coco "&lt;rtsp-url&gt;" --no-display --show-stats --frames 50'</pre>
+        </div>
+        <div class="ex">
+          <ul>
+            <li><code>docker exec Voyager-SDK bash -lc '...'</code> runs the quoted commands inside the container in a
+              login shell. The <code>\</code> at a line end just continues the command on the next line</li>
+            <li><code>cd ... &amp;&amp; source venv/bin/activate</code> enters the SDK folder and turns on its Python
+              environment</li>
+            <li><code>./inference.py yolov8n-coco "&lt;rtsp-url&gt;"</code> runs the <code>yolov8n-coco</code> model on
+              your camera stream. Replace <code>&lt;rtsp-url&gt;</code> with your camera's address</li>
+            <li><code>--no-display</code> opens no window, <code>--show-stats</code> prints speed numbers and
+              <code>--frames 50</code> stops after 50 frames
+            </li>
+          </ul>
+        </div>
+        <div class="info">If that tool works but the dashboard does not, the problem is in the kit, so collect logs. If
+          it
+          fails too, the problem is below the kit, so recheck sections 3 to 5.</div>
+      </section>
+
+      <section id="faq">
+        <h2><em>&sect; 10</em>FAQ &amp; Troubleshooting</h2>
+        <div class="faq">
+          <div class="q">
+            <p><span class="tg net">network</span><b class="t">The dashboard will not load at http://localhost.</b>
+              Check
+              the containers: <code>docker compose ps</code>. If the backend is restarting, view
+              <code>docker compose logs backend --tail=30</code>. A common cause is a mapped USB camera that is not
+              plugged in. Re-run <code>./setup.sh</code>, which handles it.
+            </p>
+          </div>
+          <div class="q">
+            <p><span class="tg net">network</span><b class="t">Streams fail with "MediaMTX HLS not ready".</b> The
+              Docker
+              bridge gateway moved after a reboot. Run <code>docker compose down &amp;&amp; docker compose up -d</code>.
+              The kit pins the subnet so this self-corrects.</p>
+          </div>
+          <div class="q">
+            <p><span class="tg inf">inference</span><b class="t">Streams run but there are no boxes.</b> Almost always
+              the
+              model's <em>label filter</em> is set to a class that is not in your scene, so every detection is discarded
+              silently. Class <code>0</code> is <code>person</code>. Make sure the filter includes what you actually
+              want
+              to detect.</p>
+          </div>
+          <div class="q">
+            <p><span class="tg inf">inference</span><b class="t">The AIPU seems slow (~17 fps).</b> The model is using
+              one
+              of the four AIPU cores. The dashboard forces all four. If you are testing with <code>inference.py</code>
+              directly, add <code>--aipu-cores 4</code>.</p>
+          </div>
+          <div class="q">
+            <p><span class="tg hw">hardware</span><b class="t">axdevice finds no device.</b> The driver is not loaded,
+              or
+              a stale handle is held. Run <code>modprobe metis</code>, check <code>lsmod | grep metis</code>, and if
+              needed <b>power-cycle</b> the board (not just reboot).</p>
+          </div>
+          <div class="q">
+            <p><span class="tg net">network</span><b class="t">A camera will not connect.</b> Test it with
+              <code>ffprobe</code> first. The usual causes: the camera is on a different subnet, credentials are missing
+              from the URL, or the stream path is wrong. A camera that is unreachable is isolated; the other cameras
+              keep
+              running.
+            </p>
+          </div>
+          <div class="q">
+            <p><span class="tg set">setup</span><b class="t">The video timestamp is hours off from the real time.</b>
+              The
+              board runs UTC by default; cameras usually burn in local time. Set <code>TZ</code> in the kit's
+              <code>.env</code> if you want them to agree. This is cosmetic, not a fault.
+            </p>
+          </div>
+          <div class="q">
+            <p><span class="tg dk">docker</span><b class="t">"sudo: command not found", or Docker permission errors.</b>
+              This board logs in as <b>root</b> and has no <code>sudo</code>, which is expected. Run every command
+              without
+              <code>sudo</code> (drop the word). Do not try to install <code>sudo</code> via <code>apt</code>; the stock
+              image has no package repositories. As root, Docker already works with no group setup.
+            </p>
+          </div>
+          <div class="q">
+            <p><span class="tg inf">inference</span><b class="t">Latency grows the longer a session runs.</b> Usually
+              stacked sessions competing for the AIPU. <code>./stop.sh &amp;&amp; ./start.sh</code> clears it. A steady
+              one-to-two-second delay, on the other hand, is normal.</p>
+          </div>
+        </div>
+      </section>
+      <div style="margin-top:48px;padding-top:24px;border-top:1px solid var(--border);color:var(--muted);font-size:13px;">
+      WGtech AI Starter Kit — Metis Compute Board · Voyager SDK 1.6.0 · Metis driver 1.4.16 · RK3588<br />Reference: <a
+        href="https://docs.axelera.ai/">Axelera docs</a> · <a
+        href="https://github.com/axelera-ai-hub/voyager-sdk">Voyager SDK</a> · <a
+        href="https://github.com/WG-Tech-Solutions/Starter-Kit">Raspberry Pi edition</a></div>
+    </section>
+    <!-- <footer>Based on the Axelera Embedded 111c User Guide (AX-000936-UG, Issue 4) and this setup session.</footer> -->
+  </main>
+  <script>
+    document.querySelectorAll(".copy").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var pre = b.closest(".code").querySelector("pre"); var t = pre.innerText.trim();
+        function done() { b.textContent = "Copied"; setTimeout(function () { b.textContent = "Copy" }, 1500) }
+        function fb() { var r = document.createRange(); r.selectNodeContents(pre); var sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); try { document.execCommand("copy"); done() } catch (e) { b.textContent = "Press Ctrl+C" } }
+        try { navigator.clipboard.writeText(t).then(done, fb) } catch (e) { fb() }
+      })
+    });
+  </script>
+  <script>
+    (function () {
+      var aside = document.querySelector("aside"), btn = document.querySelector(".menu"), scrim = document.querySelector(".scrim");
+      var links = [].slice.call(document.querySelectorAll("aside a")), map = {};
+      links.forEach(function (a) { map[a.getAttribute("href").slice(1)] = a });
+      function set(o) { aside.classList.toggle("open", o); scrim.classList.toggle("open", o); btn.setAttribute("aria-expanded", String(o)) }
+      btn.addEventListener("click", function () { set(!aside.classList.contains("open")) });
+      scrim.addEventListener("click", function () { set(false) });
+      links.forEach(function (a) { a.addEventListener("click", function () { set(false) }) });
+      document.addEventListener("keydown", function (e) { if (e.key === "Escape") set(false) });
+      if ("IntersectionObserver" in window) {
+        var io = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { links.forEach(function (l) { l.classList.remove("active") }); var a = map[e.target.id]; if (a) a.classList.add("active") } }) }, { rootMargin: "-15% 0px -75% 0px" });
+        document.querySelectorAll("main section").forEach(function (x) { io.observe(x) });
+      }
+    })();
+  </script>
+</body>
+
+</html>
